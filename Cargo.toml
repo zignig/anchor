@@ -1,0 +1,18 @@
+[package]
+name = "anchor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = "4.6.6"
+clap_derive = "4.6.4"
+directories = "6.0.0"
+iroh = "1.0.3"
+iroh-gossip = "0.101.0"
+irpc = "0.17.0"
+irpc-iroh = "0.17.0"
+reqwest = "0.13.4"
+serde = { version = "1.0.229", features = ["derive"] }
+tokio = { version = "1.53.1", features = ["full"] }
+tracing-subscriber = "0.3.23"
+turso = "0.7.2"
