@@ -6,25 +6,25 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct Setup {
-    config_path: ProjectDirs,
+    projdir: ProjectDirs,
+    config: Config,
 }
 
 impl Setup {
     pub fn new(username: String) -> Result<Self> {
-        let config_path = Self::get_path()?;
+        let projdir = Self::get_path()?;
         // Create the config folder
-        let fol = config_path.config_dir();
+        let fol = projdir.config_dir();
         match std::fs::create_dir(&fol) {
-            Ok(_) => {},
-            Err(e) => println!("{:#?}",e),
+            Ok(_) => {}
+            Err(e) => println!("{:#?}", e),
         }
-        // Create the emptyish config file 
-        let conf = Config::new(username);
+        // Create the emptyish config file
+        let config = Config::new(username);
         let mut path = fol.to_path_buf();
         path.push("config.toml");
-        println!("{:#?}",path);
-        let _ = conf.save(path);
-        Ok(Self { config_path })
+        let _ = config.save(path);
+        Ok(Self { projdir, config })
     }
 
     pub fn get_path() -> Result<ProjectDirs> {
@@ -35,10 +35,26 @@ impl Setup {
         }
     }
 
-    pub fn open() -> Result<Self> {
-        let config_path = Self::get_path()?;        
-        Ok(Self{ config_path})
+    pub fn config_path(&self) -> PathBuf { 
+        let mut path = self.projdir.config_dir().to_path_buf();
+        return path
     }
+
+    pub fn database_path(&self) -> PathBuf { 
+        let mut path = self.projdir.config_dir().to_path_buf();
+        path.push("database.db");
+        return path
+    }
+
+
+    pub fn open() -> Result<Self> {
+        let projdir = Self::get_path()?;
+        let mut path = projdir.config_dir().to_path_buf();
+        path.push("config.toml");
+        let config = Config::load(path)?;
+        Ok(Self { projdir, config })
+    }
+
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -46,16 +62,28 @@ pub struct Config {
     username: String,
 }
 
-impl Config { 
-    pub fn new(username: String ) -> Self { 
-        Self { 
-            username
-        }
+impl Config {
+    pub fn new(username: String) -> Self {
+        Self { username }
     }
 
-    pub fn save(&self,path: PathBuf) ->  Result<()>{ 
+    pub fn save(&self, path: PathBuf) -> Result<()> {
         let contents = toml::to_string(&self).expect("Broken Config");
-        std::fs::write(path,contents).expect("Can't write config file");
+        std::fs::write(path, contents).expect("Can't write config file");
         Ok(())
+    }
+
+    pub fn load(path: PathBuf) -> Result<Self> {
+        let config = match std::fs::read_to_string(path) {
+            Ok(content) => {
+                let content = content.as_str();
+                let config: Config = toml::from_str(&content).expect("Bad config file");
+                config
+            }
+            Err(e) => {
+                return Err(anyhow!("Bad Config File Parse {:#?}",e));
+            }
+        };
+        Ok(config)
     }
 }

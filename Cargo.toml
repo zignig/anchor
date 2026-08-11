@@ -12,7 +12,7 @@ iroh = "1.0.3"
 iroh-gossip = "0.101.0"
 irpc = "0.17.0"
 irpc-iroh = "0.17.0"
-pem = "4.0.0"
+pem = { version = "4.0.0", features = ["serde"] }
 reqwest = "0.13.4"
 serde = { version = "1.0.229", features = ["derive"] }
 tokio = { version = "1.53.1", features = ["full"] }
