@@ -83,8 +83,10 @@ dependencies = [
  "pem 4.0.0",
  "reqwest",
  "serde",
+ "strum 0.28.0",
  "tokio",
  "toml",
+ "tracing",
  "tracing-subscriber",
  "turso",
 ]

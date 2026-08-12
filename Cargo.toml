@@ -15,7 +15,9 @@ irpc-iroh = "0.17.0"
 pem = { version = "4.0.0", features = ["serde"] }
 reqwest = "0.13.4"
 serde = { version = "1.0.229", features = ["derive"] }
+strum = { version = "0.28.0", features = ["derive"] }
 tokio = { version = "1.53.1", features = ["full"] }
 toml = "1.1.4"
+tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 turso = "0.7.2"
