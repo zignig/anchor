@@ -24,7 +24,6 @@ async fn main() -> Result<()> {
     println!("{:#?}", c2);
     // println!("database path {:#?}", c2.database_path());
 
-    // let d = database::Database::new(c2.database_path()).await?.
     let d = Database::new(c2.database_path()).await?;
     println!("{:#?}",d);
     Ok(())

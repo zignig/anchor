@@ -27,6 +27,7 @@ impl Setup {
             Err(e) => println!("{:#?}", e),
         }
         // Create the emptyish config file
+        info!("Make Config");
         let mut config_path = fol.to_path_buf();
         config_path.push("config.toml");
 
@@ -46,6 +47,7 @@ impl Setup {
             }
         };
 
+        info!("Make Key");
         // Create the author key if it does not exist
         let mut publish_key_path = projdir.config_dir().to_path_buf();
         publish_key_path.push("author.key");
