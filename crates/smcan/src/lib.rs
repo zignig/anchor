@@ -2,6 +2,7 @@
 // Updated for entertainment value
 
 //
+mod chain;
 
 use std::ops::Add;
 

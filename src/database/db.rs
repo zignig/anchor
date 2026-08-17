@@ -85,11 +85,11 @@ impl<'a> Database {
         stp.save(&conn).await?;
         info!("write");
 
-        let mut u = Users::new("bob", "bob@bob.com", UserType::User);
-        print!("{:#?}", &u);
-        let r = u.save(&conn).await;
-        println!("{:#?}", &r);
-        info!("finish");
+        // let mut u = Users::new("bob", "bob@bob.com", UserType::User);
+        // print!("{:#?}", &u);
+        // let r = u.save(&conn).await;
+        // println!("{:#?}", &r);
+        // info!("finish");
 
         Ok(())
     }
