@@ -5,19 +5,18 @@
 mod authorizer;
 mod chain;
 
+pub use chain::Chain;
 
 use std::ops::Add;
 
 // TODO: better error management
 use anyhow::{bail, ensure, Context, Result};
 use blake3::Hash;
-use ed25519_dalek::{
-    ed25519::signature::Signer, Signature, SIGNATURE_LENGTH,
-};
+use ed25519_dalek::{ed25519::signature::Signer, Signature, SIGNATURE_LENGTH};
 use n0_future::time::{Duration, SystemTime};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-pub use ed25519_dalek::{VerifyingKey,SigningKey};
+pub use ed25519_dalek::{SigningKey, VerifyingKey};
 
 pub const VERSION: u8 = 2;
 
@@ -240,8 +239,9 @@ impl<C> Payload<C> {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize,derive_more::Debug, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, derive_more::Debug, PartialEq, Eq)]
 pub struct SourcePair {
+    #[debug("{}", hex::encode(hash.as_bytes()))]
     hash: Hash,
     #[debug("{}", hex::encode(delegate))]
     #[serde(with = "verifying_key_serde")]
@@ -381,6 +381,10 @@ impl<C> Smcan<C> {
             .issuer
             .verify_strict(&signed, &self.signature)?;
         Ok(())
+    }
+
+    pub fn get_kind(&self) -> &Hash {
+        &self.payload.kind
     }
 
     pub fn audience(&self) -> &VerifyingKey {

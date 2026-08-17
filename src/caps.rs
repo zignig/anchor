@@ -1,14 +1,39 @@
+use std::fmt::Debug;
+
 use serde::{Deserialize, Serialize};
 use smcan::Capability;
 
-#[derive(Debug, PartialOrd, PartialEq, Eq, Clone, Ord, Serialize, Deserialize)]
+#[derive(PartialOrd, PartialEq, Eq, Clone, Ord, Serialize, Deserialize)]
 pub enum Caps {
     All,
     Info,
     Issue,
     Revoke,
     Status,
-    PathTest { path: String },
+    PathTest {
+        path: String,
+    },
+    Empty,
+}
+
+impl Default for Caps {
+    fn default() -> Self {
+        Self::Empty
+    }
+}
+
+impl Debug for Caps {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::All => write!(f, "All"),
+            Self::Info => write!(f, "Info"),
+            Self::Issue => write!(f, "Issue"),
+            Self::Revoke => write!(f, "Revoke"),
+            Self::Status => write!(f, "Status"),
+            Self::PathTest { path } => f.debug_struct("PathTest").field("path", path).finish(),
+            Self::Empty => write!(f, "Empty"),
+        }
+    }
 }
 
 impl Capability for Caps {
