@@ -1,3 +1,8 @@
+// Outright stolen from https://github.com/n0-computer/rcan/commit/6605540873c44df5feb3408194421311d40ffbfd
+// Updated for entertainment value
+
+// 
+
 use std::ops::Add;
 
 // TODO: better error management
@@ -161,7 +166,7 @@ impl Authorizer {
         &self,
         invoker: VerifyingKey,
         capability: C,
-        proof_chain: &[&Rcan<C>],
+        proof_chain: &[&Smcan<C>],
     ) -> Result<()> {
         let now = SystemTime::now();
         // We require that proof chains are provided "back-to-front".
@@ -217,14 +222,14 @@ impl Authorizer {
 
 /// A token for attenuated capability delegations
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Rcan<C> {
+pub struct Smcan<C> {
     /// The actual content.
     pub payload: Payload<C>,
     /// Signature over the serialized payload.
     pub signature: Signature,
 }
 
-impl<C: Serialize> Serialize for Rcan<C> {
+impl<C: Serialize> Serialize for Smcan<C> {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -237,7 +242,7 @@ impl<C: Serialize> Serialize for Rcan<C> {
     }
 }
 
-impl<'de, C: Deserialize<'de> + Serialize> Deserialize<'de> for Rcan<C> {
+impl<'de, C: Deserialize<'de> + Serialize> Deserialize<'de> for Smcan<C> {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -245,7 +250,7 @@ impl<'de, C: Deserialize<'de> + Serialize> Deserialize<'de> for Rcan<C> {
         struct RcanVisitor<C>(std::marker::PhantomData<C>);
 
         impl<'de, C: Deserialize<'de> + Serialize> serde::de::Visitor<'de> for RcanVisitor<C> {
-            type Value = Rcan<C>;
+            type Value = Smcan<C>;
 
             fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 f.write_str("an rcan token (payload, signature)")
@@ -261,7 +266,7 @@ impl<'de, C: Deserialize<'de> + Serialize> Deserialize<'de> for Rcan<C> {
                 let SignatureWire(sig_bytes) = seq
                     .next_element()?
                     .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                let rcan = Rcan {
+                let rcan = Smcan {
                     payload,
                     signature: Signature::from_bytes(&sig_bytes),
                 };
@@ -335,7 +340,7 @@ pub struct RcanBuilder<'s, C> {
     capability: C,
 }
 
-impl<C> Rcan<C> {
+impl<C> Smcan<C> {
     pub fn issuing_builder(
         issuer: &SigningKey,
         audience: VerifyingKey,
@@ -426,7 +431,7 @@ impl<C> Rcan<C> {
 }
 
 impl<C> RcanBuilder<'_, C> {
-    pub fn sign(self, valid_until: Expires) -> Rcan<C>
+    pub fn sign(self, valid_until: Expires) -> Smcan<C>
     where
         C: Serialize,
     {
@@ -441,7 +446,7 @@ impl<C> RcanBuilder<'_, C> {
         let to_sign = postcard::to_extend(&payload, DST.to_vec()).expect("vec");
         let signature = self.issuer.sign(&to_sign);
 
-        Rcan { signature, payload }
+        Smcan { signature, payload }
     }
 }
 
@@ -513,7 +518,7 @@ mod test {
     fn test_rcan_encoding() -> TestResult {
         let issuer = SigningKey::from_bytes(&[0u8; 32]);
         let audience = SigningKey::from_bytes(&[1u8; 32]);
-        let rcan = Rcan::issuing_builder(&issuer, audience.verifying_key(), Rpc::ReadWrite)
+        let rcan = Smcan::issuing_builder(&issuer, audience.verifying_key(), Rpc::ReadWrite)
             .sign(Expires::Never);
 
         println!("{}", hex::encode(rcan.encode()));
@@ -541,7 +546,7 @@ mod test {
         .join("");
 
         assert_eq!(hex::encode(rcan.encode()), expected);
-        assert_eq!(Rcan::decode(&rcan.encode())?, rcan);
+        assert_eq!(Smcan::decode(&rcan.encode())?, rcan);
         Ok(())
     }
 
@@ -549,18 +554,18 @@ mod test {
     fn deserialize_rejects_forged_signature() {
         let issuer = SigningKey::from_bytes(&[0u8; 32]);
         let audience = SigningKey::from_bytes(&[1u8; 32]);
-        let rcan = Rcan::issuing_builder(&issuer, audience.verifying_key(), Rpc::ReadWrite)
+        let rcan = Smcan::issuing_builder(&issuer, audience.verifying_key(), Rpc::ReadWrite)
             .sign(Expires::Never);
 
         // A genuine token round-trips through serde.
         let mut wire = postcard::to_stdvec(&rcan).unwrap();
-        assert_eq!(postcard::from_bytes::<Rcan<Rpc>>(&wire).unwrap(), rcan);
+        assert_eq!(postcard::from_bytes::<Smcan<Rpc>>(&wire).unwrap(), rcan);
 
         // The trailing bytes are the signature. Zeroing them must make
         // deserialization fail rather than yield an unverified token.
         let n = wire.len();
         wire[n - SIGNATURE_LENGTH..].fill(0);
-        assert!(postcard::from_bytes::<Rcan<Rpc>>(&wire).is_err());
+        assert!(postcard::from_bytes::<Smcan<Rpc>>(&wire).is_err());
     }
 
     #[test]
@@ -570,10 +575,10 @@ mod test {
         let bob = SigningKey::from_bytes(&[2u8; 32]);
 
         // The service gives alice access to everything for 60 seconds
-        let service_rcan = Rcan::issuing_builder(&service, alice.verifying_key(), Rpc::All)
+        let service_rcan = Smcan::issuing_builder(&service, alice.verifying_key(), Rpc::All)
             .sign(Expires::valid_for(Duration::from_secs(60)));
         // alice gives attenuated (only read access) to bob, but doesn't care for how long still
-        let friend_rcan = Rcan::delegating_builder(
+        let friend_rcan = Smcan::delegating_builder(
             &alice,
             bob.verifying_key(),
             service.verifying_key(),
@@ -606,7 +611,7 @@ mod test {
     fn test_expiry() {
         let issuer = SigningKey::from_bytes(&[0u8; 32]);
         let audience = SigningKey::from_bytes(&[1u8; 32]).verifying_key();
-        let rcan = Rcan::issuing_builder(&issuer, audience, Rpc::All)
+        let rcan = Smcan::issuing_builder(&issuer, audience, Rpc::All)
             .sign(Expires::valid_for(Duration::from_secs(60)));
         assert!(rcan.expires().is_valid_at(SystemTime::UNIX_EPOCH));
         let now = SystemTime::now();
