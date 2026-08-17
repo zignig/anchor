@@ -8,11 +8,10 @@ use irpc::{Client, WithChannels, channel::oneshot, rpc_requests};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
-use tracing::debug;
 use tracing::info;
 
-use super::{Fren, caps::Caps};
-use crate::database::Store;
+use super::Fren;
+use crate::{caps::Caps, idstore::Store};
 use anyhow::Result;
 
 use smcan::Smcan;
@@ -129,10 +128,9 @@ impl Actor {
             IdentityMessage::List(list) => {
                 let WithChannels { tx, .. } = list;
                 let mut res: Vec<Fren> = Vec::new();
-                // for item in self.store.iter() {
-                //     let (_, item) = item;
-                //     res.push(item.clone());
-                // }
+                for item in self.store.iter_end().await? {
+                    res.push(item.clone());
+                }
                 tx.send(res).await.ok();
             }
         }
@@ -174,6 +172,8 @@ pub struct IdClient {
     inner: Client<StorageProtocol>,
 }
 
+// allow unused for now
+#[allow(unused)]
 impl IdClient {
     pub async fn get(&self, key: EndpointId) -> irpc::Result<Option<Fren>> {
         self.inner.rpc(Get { key }).await

@@ -8,7 +8,7 @@ use anyhow::Result;
 use iroh::EndpointId;
 use tracing::info;
 
-use super::users::{UserType, Users};
+use super::users::Users;
 
 // Database structs
 
@@ -28,11 +28,12 @@ pub enum EndpointStatus {
 pub struct StoredEndpointID {
     #[geekorm(primary_key, auto_increment)]
     id: PrimaryKeyInteger,
-    endpoint: String,
-    parent: String,
-    status: EndpointStatus,
-    rcan: Option<String>,
-    created: u64,
+    #[geekorm(unique)]
+    pub endpoint: String,
+    pub parent: String,
+    pub status: EndpointStatus,
+    pub rcan: Option<String>,
+    pub created: u64,
 }
 
 // Test endpoint id.

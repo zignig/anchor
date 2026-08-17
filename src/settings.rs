@@ -14,7 +14,7 @@ pub struct Setup {
 
 #[derive(Debug, Deserialize, Serialize)]
 struct PublishKey {
-    secret : SecretKey,
+    secret: SecretKey,
 }
 
 impl Setup {
@@ -43,7 +43,7 @@ impl Setup {
             }
             Err(e) => {
                 error!("Error {}", e);
-                return Err(anyhow!("{:#?}",e));
+                return Err(anyhow!("{:#?}", e));
             }
         };
 
@@ -74,7 +74,6 @@ impl Setup {
 
         // Create the setup
         Ok(Self { projdir, config })
-
     }
 
     pub fn get_dirs() -> Result<ProjectDirs> {
@@ -82,6 +81,21 @@ impl Setup {
             Ok(conf_dir)
         } else {
             return Err(anyhow!("Can't find config dir"));
+        }
+    }
+
+    pub fn get_author_secret(&self) -> Result<SecretKey> {
+        let mut path = self.projdir.config_dir().to_path_buf();
+        path.push("author.key");
+        match std::fs::read_to_string(path) {
+            Ok(content) => {
+                let the_key: PublishKey = toml::from_str(&content).expect("Bad config file");
+                return Ok(the_key.secret);
+            }
+            Err(e) => {
+                error!("Author Key fail {:}", e);
+                return Err(anyhow!("Author Key Fail {:}", e));
+            }
         }
     }
 
@@ -95,7 +109,6 @@ impl Setup {
         path.push("database.db");
         return path;
     }
-
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

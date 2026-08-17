@@ -2,7 +2,9 @@
 // Updated for entertainment value
 
 //
+mod authorizer;
 mod chain;
+
 
 use std::ops::Add;
 
@@ -10,15 +12,17 @@ use std::ops::Add;
 use anyhow::{bail, ensure, Context, Result};
 use blake3::Hash;
 use ed25519_dalek::{
-    ed25519::signature::Signer, Signature, SigningKey, VerifyingKey, SIGNATURE_LENGTH,
+    ed25519::signature::Signer, Signature, SIGNATURE_LENGTH,
 };
 use n0_future::time::{Duration, SystemTime};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-pub const VERSION: u8 = 1;
+pub use ed25519_dalek::{VerifyingKey,SigningKey};
+
+pub const VERSION: u8 = 2;
 
 /// Domain separation tag
-pub const DST: &[u8] = b"rcan-1-delegation";
+pub const DST: &[u8] = b"smcan-1-delegation";
 
 /// Stable serde for [`VerifyingKey`]: length-prefixed bytes in binary
 /// formats, lowercase hex in human-readable ones. Goes through
@@ -141,87 +145,6 @@ pub trait Capability: Serialize {
     fn permits(&self, other: &Self) -> bool;
 }
 
-/// An authorizer for invocations.
-///
-/// This represents an identity in the form of a public key.
-/// This public key will always be the same as the original issuer of
-/// the capabilities that are invoked against the authorizer.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Authorizer {
-    // Might even make that `SigningKey` and allow it to `sign` rcans?
-    identity: VerifyingKey,
-}
-
-impl Authorizer {
-    /// Constructs a new authorizer for given identity.
-    pub fn new(identity: VerifyingKey) -> Self {
-        Self { identity }
-    }
-
-    /// Verifies an invocation of a capability owned by this authorizer,
-    /// that may have been passed through delegations in a proof chain
-    /// and was finally signed back to us from given `invoker`.
-    ///
-    /// Make sure to verify that the `invoker` signed and authenticated the
-    /// message containing the `capability`.
-    pub fn check_invocation_from<C: Capability>(
-        &self,
-        invoker: VerifyingKey,
-        capability: C,
-        proof_chain: &[&Smcan<C>],
-    ) -> Result<()> {
-        let now = SystemTime::now();
-        // We require that proof chains are provided "back-to-front".
-        // So they start with the owner of the capability, then
-        // proceed with the next item in the chain.
-        let mut current_issuer_target = &self.identity;
-        for proof in proof_chain {
-            // Verify proof chain issuer/audience integrity:
-            let issuer = &proof.payload.issuer;
-            let audience = &proof.payload.audience;
-            ensure!(
-                issuer == current_issuer_target,
-                "invocation failed: expected proof to be issued by {}, but was issued by {}",
-                hex::encode(current_issuer_target),
-                hex::encode(issuer),
-            );
-
-            // Verify each proof's time validity:
-            let expiry = &proof.payload.valid_until;
-            ensure!(
-                expiry.is_valid_at(now),
-                "invocation failed: proof expired at {expiry}"
-            );
-
-            // Verify that the capability is actually reached through:
-            ensure!(
-                proof.capability_issuer() == &self.identity,
-                "invocation failed: proof is missing delegation for capability of {}",
-                hex::encode(self.identity)
-            );
-
-            // Verify that the capability doesn't break out of capabilitys:
-            ensure!(
-                proof.payload.capability().permits(&capability),
-                "invocation failed"
-            );
-
-            // Continue checking the proof chain's integrity with this
-            // delegation's audience as the next issuer target:
-            current_issuer_target = audience;
-        }
-
-        ensure!(
-            &invoker == current_issuer_target,
-            "invocation failed: expected delegation chain to end in the connection's owner {}, but the connection is authenticated by {} instead",
-            hex::encode(invoker),
-            hex::encode(current_issuer_target),
-        );
-
-        Ok(())
-    }
-}
-
 /// A token for attenuated capability delegations
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Smcan<C> {
@@ -317,13 +240,23 @@ impl<C> Payload<C> {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize,derive_more::Debug, PartialEq, Eq)]
+pub struct SourcePair {
+    hash: Hash,
+    #[debug("{}", hex::encode(delegate))]
+    #[serde(with = "verifying_key_serde")]
+    delegate: VerifyingKey,
+}
+
 /// The potential origins of a capability.
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum CapabilityOrigin {
     /// The origin is the issuer itself
     Issuer,
+    IssuerTerminal,
     /// This is a delegation, with this key being the root of the delegation chain.
-    Delegation(#[serde(with = "verifying_key_serde")] VerifyingKey),
+    Delegation(SourcePair),
+    DelegationTerminal(SourcePair),
 }
 
 /// When an rcan expires
@@ -361,10 +294,9 @@ impl<C> Smcan<C> {
         }
     }
 
-    pub fn delegating_builder(
+    pub fn issuing_terminal(
         issuer: &SigningKey,
         audience: VerifyingKey,
-        owner: VerifyingKey,
         kind: Hash,
         capability: C,
     ) -> RcanBuilder<'_, C> {
@@ -372,7 +304,47 @@ impl<C> Smcan<C> {
             issuer,
             audience,
             kind,
-            capability_origin: CapabilityOrigin::Delegation(owner),
+            capability_origin: CapabilityOrigin::IssuerTerminal,
+            capability,
+        }
+    }
+
+    pub fn delegating_builder(
+        issuer: &SigningKey,
+        audience: VerifyingKey,
+        owner: VerifyingKey,
+        kind: Hash,
+        hash: Hash,
+        capability: C,
+    ) -> RcanBuilder<'_, C> {
+        RcanBuilder {
+            issuer,
+            audience,
+            kind,
+            capability_origin: CapabilityOrigin::Delegation(SourcePair {
+                hash: hash,
+                delegate: owner,
+            }),
+            capability,
+        }
+    }
+
+    pub fn delegating_terminal(
+        issuer: &SigningKey,
+        audience: VerifyingKey,
+        owner: VerifyingKey,
+        kind: Hash,
+        hash: Hash,
+        capability: C,
+    ) -> RcanBuilder<'_, C> {
+        RcanBuilder {
+            issuer,
+            audience,
+            kind,
+            capability_origin: CapabilityOrigin::DelegationTerminal(SourcePair {
+                hash: hash,
+                delegate: owner,
+            }),
             capability,
         }
     }
@@ -430,7 +402,18 @@ impl<C> Smcan<C> {
     pub fn capability_issuer(&self) -> &VerifyingKey {
         match self.payload.capability_origin() {
             CapabilityOrigin::Issuer => &self.payload.issuer,
-            CapabilityOrigin::Delegation(ref root) => root,
+            CapabilityOrigin::IssuerTerminal => &self.payload.issuer,
+            CapabilityOrigin::Delegation(ref root) => &root.delegate,
+            CapabilityOrigin::DelegationTerminal(ref root) => &root.delegate,
+        }
+    }
+
+    pub fn issuer_hash(&self) -> Option<Hash> {
+        match self.payload.capability_origin() {
+            CapabilityOrigin::Issuer => None,
+            CapabilityOrigin::IssuerTerminal => None,
+            CapabilityOrigin::Delegation(ref root) => Some(root.hash.clone()),
+            CapabilityOrigin::DelegationTerminal(ref root) => Some(root.hash.clone()),
         }
     }
 
@@ -595,6 +578,7 @@ mod test {
             &alice,
             bob.verifying_key(),
             service.verifying_key(),
+            kind,
             kind,
             Rpc::Read,
         )
