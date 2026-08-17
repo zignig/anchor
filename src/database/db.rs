@@ -1,7 +1,5 @@
-use std::{
-    path::PathBuf,
-    str::FromStr
-};
+use std::marker::PhantomData;
+use std::{path::PathBuf, str::FromStr};
 
 use chrono::Utc;
 use geekorm::ConnectionManager;
@@ -11,14 +9,20 @@ use anyhow::Result;
 use iroh::EndpointId;
 use tracing::info;
 
+use super::users::{UserType, Users};
+
 // Database structs
 
 #[derive(Data, Debug, Default, Clone)]
 #[repr(u32)]
 pub enum EndpointStatus {
     #[default]
-    New,
-    Active,
+    Seen,
+    Known,
+    Apparent,
+    Fren,
+    Enemy,
+    DestroyOnSight,
 }
 
 #[derive(Table, Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -32,33 +36,7 @@ pub struct StoredEndpointID {
     created: u64,
 }
 
-
-#[derive(Data, Debug, Clone, Default)]
-enum UserType {
-    Admin,
-    #[default]
-    User,
-    Guest,
-}
-
-#[derive(Table, Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-struct Users {
-    #[geekorm(primary_key, auto_increment)]
-    id: PrimaryKeyInteger,
-
-    #[geekorm(unique)]
-    username: String,
-
-    #[geekorm(unique)]
-    email: String,
-
-    user_type: UserType,
-
-    #[geekorm(new = false)]
-    active: bool,
-    postcode: Option<String>,
-}
-
+// Test endpoint id.
 pub const EP: &str = "342dca9a6a93192cd19ecb1a190cf6b68202cd0d2a81236cebd28a094b314af7";
 
 // Database setup
@@ -67,10 +45,21 @@ pub struct Database {
     manager: ConnectionManager,
 }
 
-impl Database {
+impl<'a> Database {
     pub async fn new(path: PathBuf) -> Result<Self> {
         info!("Create database");
         let manager = ConnectionManager::connect(path.to_string_lossy()).await?;
+        {
+            let conn = manager.acquire().await;
+            Users::create_table(&conn).await?;
+            StoredEndpointID::create_table(&conn).await?;
+        };
+        Ok(Self { manager })
+    }
+
+    pub async fn new_mem() -> Result<Self> {
+        info!("Create database in memory");
+        let manager = ConnectionManager::connect("::memory::").await?;
         {
             let conn = manager.acquire().await;
             Users::create_table(&conn).await?;
@@ -85,21 +74,24 @@ impl Database {
     }
 
     pub async fn test(&self) -> Result<()> {
+        info!("start");
         let conn = self.conn().await?;
         let now = Utc::now().timestamp() as u64;
         let ep = EndpointId::from_str(EP)?;
+        info!("make");
 
         let mut stp =
-        StoredEndpointID::new(ep.to_string(), EP.to_string(), EndpointStatus::Active, now);
+            StoredEndpointID::new(ep.to_string(), EP.to_string(), EndpointStatus::Seen, now);
 
         stp.save(&conn).await?;
+        info!("write");
 
-        let mut u = Users::new("bob", "bob@bob.com", UserType::Admin);
+        let mut u = Users::new("bob", "bob@bob.com", UserType::User);
         print!("{:#?}", &u);
         let r = u.save(&conn).await;
         println!("{:#?}", &r);
+        info!("finish");
+
         Ok(())
     }
-
-
 }

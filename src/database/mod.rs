@@ -1,25 +1,71 @@
 // Database setup for auth and user bits
-// Tables
-//    endpoint
-//    publisher
 
-mod irpc;
+mod caps;
 mod db;
+mod irpc;
+mod users;
 
+use std::path::PathBuf;
 
-use std::{
-    path::PathBuf,
-    str::FromStr,
-    time::{SystemTime, UNIX_EPOCH},
-};
-
-use chrono::Utc;
-use geekorm::ConnectionManager;
-use geekorm::Value;
-use geekorm::{Connection, prelude::*};
+pub use db::Database;
+pub use irpc::IdentityApi;
 
 use anyhow::Result;
-use iroh::{EndpointId, PublicKey};
+use iroh::PublicKey;
 use serde::{Deserialize, Serialize};
+use smcan::Smcan;
+
+use crate::database::caps::Caps;
+
 use tracing::info;
-// use turso::{Builder, Connection, params};
+
+// Expand
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Fren {
+    name: String,
+    id: PublicKey,
+    rcan: Option<Smcan<Caps>>,
+}
+
+impl Fren {
+    pub fn new(id: PublicKey) -> Self {
+        Self {
+            name: "".to_string(),
+            id: id,
+            rcan: None,
+        }
+    }
+}
+
+pub struct Store {
+    database: Database,
+}
+
+impl Store {
+    pub async fn new(path: PathBuf) -> Result<Self> {
+        let database = db::Database::new(path).await?;
+        {
+            database.test().await?;
+        }
+        Ok(Self { database })
+    }
+
+    pub async fn new_mem() -> Result<Self> {
+        let database = db::Database::new_mem().await?;
+        Ok(Self { database })
+    }
+
+    pub async fn get(&self, key: &iroh::PublicKey) -> Result<Option<Fren>> {
+        Ok(None)
+    }
+
+    pub async fn add(&self, key: iroh::PublicKey) -> Result<Option<Fren>> {
+        info!("add {:#?}", key);
+        Ok(None)
+    }
+
+    pub async fn remove(&self, key: &iroh::PublicKey) -> Result<Option<Fren>> {
+        info!("remove {:#?}", key);
+        Ok(None)
+    }
+}
