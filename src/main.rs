@@ -34,10 +34,11 @@ async fn main() -> Result<()> {
     let id_server = IdentityApi::new(Some(c2.database_path())).await;
 
     let cl = id_server.client();
-    
-    let _ =  cl.get(PublicKey::from_str(EP)?).await?;
 
-    let _ = tokio::signal::ctrl_c().await;
+    let e =  cl.get(PublicKey::from_str(EP)?).await?;
+    println!("GETTER {:#?}",e);
+
+    // let _ = tokio::signal::ctrl_c().await;
     info!("Finish");
     Ok(())
 }

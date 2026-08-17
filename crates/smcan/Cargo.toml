@@ -12,6 +12,7 @@ rust-version = "1.91"
 
 [dependencies]
 anyhow = "1.0.95"
+blake3 = { version = "1.8.6", features = ["serde"] }
 derive_more = { version = "2.0.1", features = ["debug", "display"] }
 ed25519-dalek = { version = "3.0", features = ["serde"] }
 hex = "0.4.3"

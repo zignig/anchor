@@ -11,10 +11,9 @@ use tokio::sync::mpsc::Sender;
 use tracing::debug;
 use tracing::info;
 
+use super::{Fren, caps::Caps};
 use crate::database::Store;
-use super::{Fren,caps::Caps};
 use anyhow::Result;
-
 
 use smcan::Smcan;
 
@@ -78,7 +77,7 @@ struct Actor {
 impl Actor {
     async fn run(mut self) {
         while let Some(msg) = self.recv.recv().await {
-            self.handle(msg).await;
+            self.handle(msg).await.unwrap();
         }
     }
 
@@ -176,7 +175,6 @@ pub struct IdClient {
 }
 
 impl IdClient {
-
     pub async fn get(&self, key: EndpointId) -> irpc::Result<Option<Fren>> {
         self.inner.rpc(Get { key }).await
     }
