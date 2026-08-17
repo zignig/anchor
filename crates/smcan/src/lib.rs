@@ -2,10 +2,11 @@
 // Updated for entertainment value
 
 //
-mod authorizer;
+// mod authorizer;
 mod chain;
 
 pub use chain::Chain;
+pub use chain::ChainBuilder;
 
 use std::ops::Add;
 
