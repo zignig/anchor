@@ -5168,6 +5168,7 @@ dependencies = [
  "serde",
  "serdect",
  "testresult",
+ "tracing",
 ]
 
 [[package]]

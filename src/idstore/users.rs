@@ -1,5 +1,4 @@
-use geekorm::prelude::*;
-use geekorm::{Data, PrimaryKeyInteger, Table};
+use geekorm::{Data, PrimaryKeyInteger, Table, prelude::*};
 
 #[derive(Data, Debug, Clone, Default)]
 pub enum UserType {

@@ -1,20 +1,17 @@
 // A cache of the rcan authenticated endpoints.
 
-use std::path::PathBuf;
-use std::time::SystemTime;
+use std::{path::PathBuf, time::SystemTime};
 
+use anyhow::Result;
 use iroh::EndpointId;
 use irpc::{Client, WithChannels, channel::oneshot, rpc_requests};
-
 use serde::{Deserialize, Serialize};
+use smcan::Smcan;
 use tokio::sync::mpsc::Sender;
 use tracing::info;
 
 use super::Fren;
 use crate::{caps::Caps, idstore::Store};
-use anyhow::Result;
-
-use smcan::Smcan;
 
 // use rcan::Capability;
 // use rcan::Rcan;

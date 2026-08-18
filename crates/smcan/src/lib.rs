@@ -3,21 +3,20 @@
 
 //
 // mod authorizer;
+mod builder;
 mod chain;
-
-pub use chain::Chain;
-pub use chain::ChainBuilder;
 
 use std::ops::Add;
 
 // TODO: better error management
 use anyhow::{bail, ensure, Context, Result};
 use blake3::Hash;
+pub use builder::ChainBuilder;
+pub use chain::Chain;
 use ed25519_dalek::{ed25519::signature::Signer, Signature, SIGNATURE_LENGTH};
+pub use ed25519_dalek::{SigningKey, VerifyingKey};
 use n0_future::time::{Duration, SystemTime};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-
-pub use ed25519_dalek::{SigningKey, VerifyingKey};
 
 pub const VERSION: u8 = 2;
 

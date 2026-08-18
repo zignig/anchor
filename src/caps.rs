@@ -10,9 +10,7 @@ pub enum Caps {
     Issue,
     Revoke,
     Status,
-    PathTest {
-        path: String,
-    },
+    PathTest { path: String },
     Other,
     Empty,
 }
@@ -32,7 +30,7 @@ impl Debug for Caps {
             Self::Revoke => write!(f, "Revoke"),
             Self::Status => write!(f, "Status"),
             Self::PathTest { path } => f.debug_struct("PathTest").field("path", path).finish(),
-            Self::Other => write!(f,"Other"),
+            Self::Other => write!(f, "Other"),
             Self::Empty => write!(f, "Empty"),
         }
     }

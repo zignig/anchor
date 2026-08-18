@@ -1,21 +1,19 @@
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr, time::Duration};
 
 use anyhow::Result;
 use blake3::Hash;
 use iroh::PublicKey;
-use std::time::Duration;
-
 use smcan::{Chain, ChainBuilder, Smcan};
-use tracing_subscriber::filter::{LevelFilter, Targets};
-use tracing_subscriber::prelude::*;
+use tracing_subscriber::{
+    filter::{LevelFilter, Targets},
+    prelude::*,
+};
 
 mod caps;
 mod idstore;
 mod settings;
 
 use idstore::IdentityApi;
-
 use settings::Setup;
 use tracing::{error, info};
 
@@ -54,14 +52,21 @@ async fn main() -> Result<()> {
     let target = smcan::VerifyingKey::from_bytes(ep.as_bytes())?;
 
     info!("CHAIN ISSUER");
-    let mut cb = ChainBuilder::<Caps>::new(issuer, kind);
+
+    let mut cb = ChainBuilder::<Caps>::new(audience, kind);
     let path = PathBuf::from_str("data.bin").unwrap();
     match cb.load(path) {
         Ok(_) => {
             info!("Load from file");
         }
         Err(_) => {
-            cb.start(audience, Caps::All, Duration::from_secs(24 * 60 * 60 * 5))?;
+            // 
+            cb.start(
+                audience,
+                audience,
+                Caps::All,
+                Duration::from_secs(24 * 60 * 60 * 5),
+            )?;
             cb.append(audience, Caps::Info, Duration::from_secs(3000))?;
             cb.append(audience, Caps::Info, Duration::from_secs(4))?;
             cb.append(target, Caps::Status, Duration::from_secs(1000))?;
@@ -69,9 +74,9 @@ async fn main() -> Result<()> {
         }
     }
     cb.show();
-    println!("data_size {}",cb.dump().len());
+    println!("data_size {}", cb.dump().len());
     let cb_res = cb.check();
-    info!("{:#?}",cb_res);
+    info!("{:#?}", cb_res);
 
     // info!("{:#?}",cb);
     info!("Finish");

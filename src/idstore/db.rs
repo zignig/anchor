@@ -1,10 +1,8 @@
 use std::{path::PathBuf, str::FromStr};
 
-use chrono::Utc;
-use geekorm::ConnectionManager;
-use geekorm::{Connection, prelude::*};
-
 use anyhow::Result;
+use chrono::Utc;
+use geekorm::{Connection, ConnectionManager, prelude::*};
 use iroh::EndpointId;
 use tracing::info;
 

@@ -6,20 +6,16 @@ mod users;
 
 use std::{path::PathBuf, str::FromStr};
 
+use anyhow::Result;
 pub use db::Database;
 use geekorm::GeekConnector;
-pub use irpc::IdentityApi;
-
-use anyhow::Result;
 use iroh::PublicKey;
+pub use irpc::IdentityApi;
 use serde::{Deserialize, Serialize};
 use smcan::Smcan;
-
-use crate::idstore::db::StoredEndpointID;
-use crate::caps::Caps;
-
-
 use tracing::info;
+
+use crate::{caps::Caps, idstore::db::StoredEndpointID};
 
 // Expand
 #[derive(Serialize, Deserialize, Debug, Clone)]

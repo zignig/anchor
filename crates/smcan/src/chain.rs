@@ -1,6 +1,5 @@
-// Chain of smcans
-
-// This is part of the extension from Rcan.
+//! Chain of smcans
+//! Import, show and check and export a vector of CAN objects
 
 use std::{
     fmt::Display,
@@ -29,14 +28,13 @@ impl Display for ChainError {
         match self {
             ChainError::Empty => write!(f, "Empty Chain"),
             ChainError::VerifyError(_) => todo!(),
-            ChainError::Expired(num) => write!(f, "Item {} Expired",num),
+            ChainError::Expired(num) => write!(f, "Item {} Expired", num),
             ChainError::IssuerMismatch => write!(f, "Issuer Mismatch"),
         }
     }
 }
 
 //  This serves as the top of the chain
-pub struct Anchor {}
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Chain<C>
@@ -105,7 +103,7 @@ where
         }
 
         println!("Check Expiry");
-        for (num,item ) in self.items.iter().enumerate() {
+        for (num, item) in self.items.iter().enumerate() {
             let expiry = &item.payload.valid_until;
             if !expiry.is_valid_at(now) {
                 return Err(anyhow!(ChainError::Expired(num)));
@@ -128,104 +126,19 @@ where
             }
             current_issuer = audience;
         }
+        
         println!("Check the hash chain");
         let mut current_hash: Hash = hashes.first().expect("Hash missing").clone();
-        for item in &self.items { 
-            if let Some(hash)  = item.issuer_hash(){
-                println!("HASH {:#?}",hash);
-            } else { 
+        for item in &self.items {
+            if let Some(hash) = item.issuer_hash() {
+                println!("HASH {:#?}", hash);
+            } else {
                 println!("deal with issue at the front");
-                
+
                 // todo!("deal with issue at the front");
             }
         }
 
-        Ok(())
-    }
-}
-
-/// Chain Builder
-#[derive(Debug)]
-pub struct ChainBuilder<C>
-where
-    C: Serialize,
-{
-    signkey: SigningKey,
-    kind: Hash,
-    chain: Chain<C>,
-    hashes: Vec<Hash>,
-}
-
-impl<C> ChainBuilder<C>
-where
-    C: Serialize + for<'de> Deserialize<'de> + std::fmt::Debug + Default,
-{
-    pub fn new(signkey: SigningKey, kind: Hash) -> Self {
-        Self {
-            signkey,
-            kind,
-            chain: Chain::<C>::default(),
-            hashes: Vec::default(),
-        }
-    }
-
-    pub fn start(&mut self, target: VerifyingKey, cap: C, dur: Duration) -> Result<()> {
-        let rc = Smcan::<C>::issuing_builder(&self.signkey, target, self.kind, cap);
-        let smc = rc.sign(Expires::valid_for(dur));
-        let h = blake3::hash(&smc.encode());
-        self.hashes.push(h);
-        self.chain.items.push(smc);
-
-        Ok(())
-    }
-
-    pub fn append(&mut self, target: VerifyingKey, cap: C, dur: Duration) -> Result<()> {
-        if self.chain.len() < 1 {
-            return Err(anyhow!("chain not long enough"));
-        };
-        let h = self.hashes.last().expect("no hashes");
-        let vkey = self.signkey.verifying_key();
-        let rc =
-            Smcan::<C>::delegating_builder(&self.signkey, target, vkey, self.kind, h.clone(), cap);
-        let smc = rc.sign(Expires::valid_for(dur));
-        let h = blake3::hash(&smc.encode());
-        self.hashes.push(h);
-        self.chain.items.push(smc);
-        Ok(())
-    }
-
-    pub fn check(&self) -> Result<()> {
-        let vkey = self.signkey.verifying_key();
-        self.chain.check(vkey, self.kind)?;
-        Ok(())
-    }
-
-    pub fn dump(&self) -> Vec<u8> {
-        self.chain.dump()
-    }
-
-    pub fn show(&self) {
-        self.chain.scan();
-    }
-
-    pub fn pop(&mut self) { 
-        let _ = self.chain.items.pop();
-    }
-
-    pub fn load(&mut self, path: PathBuf) -> Result<()> {
-        match std::fs::read(path) {
-            Ok(content) => {
-                let chain = Chain::<C>::load(content)?;
-                self.chain = chain
-            }
-            Err(e) => {
-                return Err(anyhow!("Bad Data Parse {:#?}", e));
-            }
-        };
-        // Extract the hashes on load
-        for i in &self.chain.items{ 
-            self.hashes.push(blake3::hash(&i.encode()));
-        }
         Ok(())
     }
 }
