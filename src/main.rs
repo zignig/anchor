@@ -44,7 +44,7 @@ async fn main() -> Result<()> {
     let r = c2.get_author_secret()?;
 
     let issuer = smcan::SigningKey::from_bytes(&r.to_bytes());
-    let audience = issuer.verifying_key();
+    let audience = issuer.clone().verifying_key();
 
     let ep = PublicKey::from_str(EP)?;
     let target = smcan::VerifyingKey::from_bytes(ep.as_bytes())?;
@@ -61,18 +61,34 @@ async fn main() -> Result<()> {
             info!("Load from file");
         }
         Err(_) => {
-            //
+            // build the smcan
             cb.start(
-                issuer,
+                issuer.clone(),
                 audience,
                 Caps::All,
                 Duration::from_secs(24 * 60 * 60 * 5),
             )?;
-            cb.append(audience, Caps::Info, Duration::from_secs(24 * 60 * 60),false)?;
-            cb.append(target, Caps::Info, Duration::from_secs(24 * 60),false)?;
+            cb.append(
+                audience,
+                Caps::Info,
+                Duration::from_secs(24 * 60 * 60),
+                false,
+            )?;
+            cb.append(
+                audience,
+                Caps::Info,
+                Duration::from_secs(24 * 60 * 60),
+                false,
+            )?;
+
+            // cb.append(target, Caps::Info, Duration::from_secs(24 * 60), true)?;
+
             std::fs::write("data.bin", cb.dump()).expect("Can't write data file");
         }
     }
+    cb.add_key(&issuer);
+    cb.append(target, Caps::Info, Duration::from_secs(24 * 60), true)?;
+
     cb.show();
     println!("data_size {}", cb.dump().len());
     // let cb_res = cb.check();
@@ -82,12 +98,12 @@ async fn main() -> Result<()> {
         info!("wooh hoo it works")
     }
 
-    println!("");
-    info!("RESOLVER TEST");
-    let res = Resolver::<Caps>::new();
-    println!("{:#?}", res);
-    // info!("{:#?}",cb);
-    info!("Finish");
+    // println!("");
+    // info!("RESOLVER TEST");
+    // let res = Resolver::<Caps>::new();
+    // println!("{:#?}", res);
+    // // info!("{:#?}",cb);
+    // info!("Finish");
 
     Ok(())
 }

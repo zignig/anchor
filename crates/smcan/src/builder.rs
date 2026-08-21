@@ -38,10 +38,9 @@ where
         }
     }
 
-    pub fn add_key(&mut self, key: &SigningKey) -> Result<()> {
+    pub fn add_key(&mut self, key: &SigningKey){
         let vkey = key.verifying_key();
         self.signing_keys.insert(vkey, key.clone());
-        Ok(())
     }
 
     // Start a chain
@@ -52,7 +51,7 @@ where
         cap: C,
         dur: Duration,
     ) -> Result<()> {
-        self.add_key(&source)?;
+        self.add_key(&source);
         let rc = Smcan::<C>::issuing_builder(&source, target, cap);
         let smc = rc.sign(Expires::valid_for(dur));
         let h = blake3::hash(&smc.encode());
@@ -69,7 +68,7 @@ where
         cap: C,
         dur: Duration,
     ) -> Result<()> {
-        self.add_key(&source)?;
+        self.add_key(&source);
         let rc = Smcan::<C>::issuing_terminal(&source, target, cap);
         let smc = rc.sign(Expires::valid_for(dur));
         let h = blake3::hash(&smc.encode());
@@ -113,7 +112,7 @@ where
         } else {
             Smcan::<C>::delegating_builder(&signkey, target, last_aud, h.clone(), cap)
         };
-        
+
         let smc = rc.sign(Expires::valid_for(dur));
 
         // Grab the hash and update the chain.
@@ -128,7 +127,7 @@ where
         Ok(())
     }
 
-    pub fn check_cap(&self, cap: C) -> Result<bool> {
+    pub fn check_cap(&self,cap: C) -> Result<bool> {
         let val = self.chain.check_cap(self.sourcekey, cap)?;
         Ok(val)
     }
