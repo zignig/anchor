@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
     let mut filter = Targets::new();
     filter = filter
         .with_target(env!("CARGO_PKG_NAME"), LevelFilter::DEBUG)
-        .with_target("smcan", LevelFilter::INFO);
+        .with_target("smcan", LevelFilter::DEBUG);
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
         .with(filter)
@@ -89,6 +89,7 @@ async fn main() -> Result<()> {
     cb.add_key(&issuer);
     cb.append(target, Caps::Info, Duration::from_secs(24 * 60), true)?;
 
+    println!("Show");
     cb.show();
     println!("data_size {}", cb.dump().len());
     // let cb_res = cb.check();

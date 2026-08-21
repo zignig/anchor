@@ -78,7 +78,7 @@ where
 
     // Check the smcans , general hygiene , does not
     // check the capability chain
-    pub fn check(&self, root: VerifyingKey) -> Result<()> {
+    pub fn check(&self, root: &VerifyingKey) -> Result<()> {
         let kind_hash = blake3::hash(C::KIND.as_bytes());
         let mut hashes = Vec::<Hash>::new();
         let now = SystemTime::now();
@@ -115,7 +115,7 @@ where
         debug!("Check Origin");
         for item in &self.items {
             let issuer = item.capability_issuer();
-            if issuer != &root {
+            if issuer != root {
                 return Err(anyhow!(ChainError::BadIssuer(issuer.clone())));
             }
         }
@@ -148,11 +148,11 @@ where
             }
         }
 
-        warn!("Check the hash chain");
+        // warn!("Check the hash chain");
         let _current_hash: Hash = hashes.first().expect("Hash missing").clone();
-        warn!("hash {:#?}", hashes);
+        // warn!("hash {:#?}", hashes);
         for item in &self.items {
-            info!("{:#?}", item.capability_origin());
+            // info!("{:#?}", item.capability_origin());
             // if let Some(hash) = item.issuer_hash() {
             //     println!("HASH {:#?}", hash);
             // } else {
@@ -165,7 +165,7 @@ where
         Ok(())
     }
 
-    pub fn check_cap(&self, root: VerifyingKey, cap: C) -> Result<bool> {
+    pub fn check_cap(&self, root: &VerifyingKey, cap: C) -> Result<bool> {
         // Perform general checks on the chain
         debug!("Check cap {:#?}", &cap);
         self.check(root)?;

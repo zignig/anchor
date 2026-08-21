@@ -8,6 +8,7 @@ use anyhow::{anyhow, Result};
 use blake3::Hash;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
+use tracing::{error, info};
 
 use crate::{Capability, Chain, Expires, Smcan};
 
@@ -27,7 +28,7 @@ where
 
 impl<C> ChainBuilder<C>
 where
-    C: Serialize + Capability + for<'de> Deserialize<'de> + std::fmt::Debug + Default,
+    C: Serialize + Capability + for<'de> Deserialize<'de> + std::fmt::Debug + Default + Clone,
 {
     pub fn new(sourcekey: VerifyingKey) -> Self {
         Self {
@@ -90,9 +91,17 @@ where
         if self.chain.len() < 1 {
             return Err(anyhow!("Chain not long enough"));
         };
-
+        // Max size
         if self.chain.len() > MAX_LENGTH {
             return Err(anyhow!("Chain too long"));
+        }
+        // Check if the cap chain can actually support the new cap
+        match self.chain.check_cap(&self.sourcekey, cap.clone()){
+            Ok(_) => {},
+            Err(_) => {
+                error!("Failed to add {:#?}",&cap);
+                return Err(anyhow!("Can't add {:#?}",&cap));
+            },
         }
 
         // Get the last item off the chain , and try to find the SigningKey
@@ -123,12 +132,12 @@ where
     }
 
     pub fn check(&self) -> Result<()> {
-        self.chain.check(self.sourcekey)?;
+        self.chain.check(&self.sourcekey)?;
         Ok(())
     }
 
     pub fn check_cap(&self,cap: C) -> Result<bool> {
-        let val = self.chain.check_cap(self.sourcekey, cap)?;
+        let val = self.chain.check_cap(&self.sourcekey, cap)?;
         Ok(val)
     }
 
