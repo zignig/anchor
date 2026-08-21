@@ -30,7 +30,7 @@ impl Display for ChainError {
             ChainError::BadKind(k1, k2) => write!(f, "Kind should be {}, got {}", k1, k2),
             ChainError::Expired(num) => write!(f, "Item {} Expired", num),
             ChainError::IssuerMismatch => write!(f, "Issuer Mismatch"),
-            ChainError::PermissionDeny => write!(f, "permission denied"),
+            ChainError::PermissionDeny => write!(f, "Permission Eenied"),
             ChainError::BadIssuer(verifying_key) => write!(f, "Bad issuer , {:?}", verifying_key),
             ChainError::TerminalInChain => write!(f, "Terminal before chain end."),
         }

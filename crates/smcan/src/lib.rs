@@ -6,6 +6,9 @@ mod builder;
 mod chain;
 mod resolver;
 
+#[cfg(test)]
+mod tests;
+
 //  Exported
 pub use builder::ChainBuilder;
 pub use chain::Chain;
