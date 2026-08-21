@@ -100,7 +100,7 @@ mod test {
             Duration::from_secs(100),
             false,
         );
-        println!("{:#?}",&res);
+        println!("{:#?}", &res);
         assert!(res.is_err());
         Ok(())
     }

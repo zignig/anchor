@@ -30,7 +30,7 @@ impl Display for ChainError {
             ChainError::BadKind(k1, k2) => write!(f, "Kind should be {}, got {}", k1, k2),
             ChainError::Expired(num) => write!(f, "Item {} Expired", num),
             ChainError::IssuerMismatch => write!(f, "Issuer Mismatch"),
-            ChainError::PermissionDeny => write!(f, "Permission Eenied"),
+            ChainError::PermissionDeny => write!(f, "Permission Denied"),
             ChainError::BadIssuer(verifying_key) => write!(f, "Bad issuer , {:?}", verifying_key),
             ChainError::TerminalInChain => write!(f, "Terminal before chain end."),
         }
@@ -88,19 +88,12 @@ where
         }
 
         debug!("Verify the signatures");
-        for (i, j) in self.items.iter().enumerate() {
-            // debug!(
-            //     "{} {} -> {}",
-            //     i,
-            //     hex::encode(j.issuer()),
-            //     hex::encode(j.audience())
-            // );
-
-            match j.verify_signature() {
+        for item in &self.items {
+            match item.verify_signature() {
                 Ok(_) => {}
                 Err(e) => return Err(e),
             }
-            hashes.push(blake3::hash(&j.encode()));
+            hashes.push(blake3::hash(&item.encode()));
         }
 
         debug!("Check Kind");
@@ -152,7 +145,7 @@ where
         let _current_hash: Hash = hashes.first().expect("Hash missing").clone();
         // warn!("hash {:#?}", hashes);
         for item in &self.items {
-            // info!("{:#?}", item.capability_origin());
+            info!("{:#?}", item.capability_origin());
             // if let Some(hash) = item.issuer_hash() {
             //     println!("HASH {:#?}", hash);
             // } else {

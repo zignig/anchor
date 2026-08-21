@@ -4,12 +4,10 @@
 // Clippy show me how.
 // #![deny(missing_docs)]
 
-
 // local modules
 mod builder;
 mod chain;
 mod resolver;
-
 
 // Run some tests , because reasons.
 #[cfg(test)]

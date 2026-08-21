@@ -10,20 +10,16 @@ use anyhow::{anyhow, Result};
 use blake3::Hash;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use crate::{Capability, Chain, Expires, Smcan};
 
 // Limit the length of the chain ( testing for now )
 const MAX_LENGTH: usize = 8;
 
-
 // Builder errors
-#[derive(Debug)]
-pub enum BuilderErrors  {
-
-}
-
+// #[derive(Debug)]
+// pub enum BuilderErrors {}
 
 #[derive(Debug)]
 pub struct ChainBuilder<C>
