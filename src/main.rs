@@ -23,15 +23,14 @@ use crate::caps::Caps;
 pub const EP: &str = "342dca9a6a93192cd19ecb1a190cf6b68202cd0d2a81236cebd28a094b314af7";
 pub const EP2: &str = "c3ed43570bef3014a3583dfc4088a9eee9698579bd6527424b017c9ba735237e";
 
-// pub type Canner = Smcan<Caps>;
-// pub type Chainer = Chain<Caps>;
+// pub type Chainer = Chainbuilder<Caps>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let mut filter = Targets::new();
     filter = filter
         .with_target(env!("CARGO_PKG_NAME"), LevelFilter::DEBUG)
-        .with_target("", LevelFilter::INFO);
+        .with_target("smcan", LevelFilter::DEBUG);
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
         .with(filter)
@@ -53,7 +52,9 @@ async fn main() -> Result<()> {
 
     info!("CHAIN ISSUER");
 
-    let mut cb = ChainBuilder::<Caps>::new(audience, kind);
+    let mut cb = ChainBuilder::<Caps>::new(audience);
+
+    // Load and save a binary file for local testing
     let path = PathBuf::from_str("data.bin").unwrap();
     match cb.load(path) {
         Ok(_) => {
@@ -62,13 +63,13 @@ async fn main() -> Result<()> {
         Err(_) => {
             // 
             cb.start(
-                audience,
+                issuer,
                 audience,
                 Caps::All,
                 Duration::from_secs(24 * 60 * 60 * 5),
             )?;
             cb.append(audience, Caps::Info, Duration::from_secs(3000))?;
-            cb.append(audience, Caps::Info, Duration::from_secs(4))?;
+            cb.append(audience, Caps::Info, Duration::from_secs(4000))?;
             cb.append(target, Caps::Status, Duration::from_secs(1000))?;
             std::fs::write("data.bin", cb.dump()).expect("Can't write data file");
         }

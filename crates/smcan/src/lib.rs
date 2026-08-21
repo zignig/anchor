@@ -1,10 +1,12 @@
 // Outright stolen from https://github.com/n0-computer/rcan/commit/6605540873c44df5feb3408194421311d40ffbfd
 // Updated for entertainment value
 
-//
-// mod authorizer;
+// local modules
 mod builder;
 mod chain;
+mod resolver;
+
+
 
 use std::ops::Add;
 
@@ -137,6 +139,8 @@ impl<'de> Deserialize<'de> for SignatureWire {
 /// The `Capability` type must be serializable so it can be included in the signature
 /// payload in an [`Rcan`].
 pub trait Capability: Serialize {
+    // Store  the hash.
+    const KIND: &'static str;
     /// Determines if `self` permits `other`.
     ///
     /// Returns `true` if `self` grants permission to perform the `other` capability,
@@ -273,7 +277,6 @@ pub enum Expires {
 pub struct RcanBuilder<'s, C> {
     issuer: &'s SigningKey,
     audience: VerifyingKey,
-    kind: Hash,
     capability_origin: CapabilityOrigin,
     capability: C,
 }
@@ -282,13 +285,11 @@ impl<C> Smcan<C> {
     pub fn issuing_builder(
         issuer: &SigningKey,
         audience: VerifyingKey,
-        kind: Hash,
         capability: C,
     ) -> RcanBuilder<'_, C> {
         RcanBuilder {
             issuer,
             audience,
-            kind,
             capability_origin: CapabilityOrigin::Issuer,
             capability,
         }
@@ -297,13 +298,11 @@ impl<C> Smcan<C> {
     pub fn issuing_terminal(
         issuer: &SigningKey,
         audience: VerifyingKey,
-        kind: Hash,
         capability: C,
     ) -> RcanBuilder<'_, C> {
         RcanBuilder {
             issuer,
             audience,
-            kind,
             capability_origin: CapabilityOrigin::IssuerTerminal,
             capability,
         }
@@ -313,14 +312,12 @@ impl<C> Smcan<C> {
         issuer: &SigningKey,
         audience: VerifyingKey,
         owner: VerifyingKey,
-        kind: Hash,
         hash: Hash,
         capability: C,
     ) -> RcanBuilder<'_, C> {
         RcanBuilder {
             issuer,
             audience,
-            kind,
             capability_origin: CapabilityOrigin::Delegation(SourcePair {
                 hash: hash,
                 delegate: owner,
@@ -333,14 +330,12 @@ impl<C> Smcan<C> {
         issuer: &SigningKey,
         audience: VerifyingKey,
         owner: VerifyingKey,
-        kind: Hash,
         hash: Hash,
         capability: C,
     ) -> RcanBuilder<'_, C> {
         RcanBuilder {
             issuer,
             audience,
-            kind,
             capability_origin: CapabilityOrigin::DelegationTerminal(SourcePair {
                 hash: hash,
                 delegate: owner,
@@ -429,12 +424,12 @@ impl<C> Smcan<C> {
 impl<C> RcanBuilder<'_, C> {
     pub fn sign(self, valid_until: Expires) -> Smcan<C>
     where
-        C: Serialize,
+        C: Serialize + Capability,
     {
         let payload = Payload {
             issuer: self.issuer.verifying_key(),
             audience: self.audience,
-            kind: self.kind,
+            kind: blake3::hash(C::KIND.as_bytes()),
             capability_origin: self.capability_origin,
             capability: self.capability,
             valid_until,
@@ -485,6 +480,8 @@ mod test {
     }
 
     impl Capability for Rpc {
+        const KIND: Hash = blake3::hash(b"testinghash");
+
         fn permits(&self, other: &Self) -> bool {
             match (self, other) {
                 // `All` permits all RPC operations, by definition
@@ -513,10 +510,9 @@ mod test {
 
     #[test]
     fn test_rcan_encoding() -> TestResult {
-        let kind = blake3::hash(b"testing kind");
         let issuer = SigningKey::from_bytes(&[0u8; 32]);
         let audience = SigningKey::from_bytes(&[1u8; 32]);
-        let rcan = Smcan::issuing_builder(&issuer, audience.verifying_key(), kind, Rpc::ReadWrite)
+        let rcan = Smcan::issuing_builder(&issuer, audience.verifying_key(), Rpc::ReadWrite)
             .sign(Expires::Never);
 
         println!("{}", hex::encode(rcan.encode()));
@@ -550,10 +546,9 @@ mod test {
 
     #[test]
     fn deserialize_rejects_forged_signature() {
-        let kind = blake3::hash(b"testing kind");
         let issuer = SigningKey::from_bytes(&[0u8; 32]);
         let audience = SigningKey::from_bytes(&[1u8; 32]);
-        let rcan = Smcan::issuing_builder(&issuer, audience.verifying_key(), kind, Rpc::ReadWrite)
+        let rcan = Smcan::issuing_builder(&issuer, audience.verifying_key(), Rpc::ReadWrite)
             .sign(Expires::Never);
 
         // A genuine token round-trips through serde.
@@ -569,20 +564,18 @@ mod test {
 
     #[test]
     fn test_rcan_invocation() -> TestResult {
-        let kind = blake3::hash(b"testing kind");
         let service = SigningKey::from_bytes(&[0u8; 32]);
         let alice = SigningKey::from_bytes(&[1u8; 32]);
         let bob = SigningKey::from_bytes(&[2u8; 32]);
 
         // The service gives alice access to everything for 60 seconds
-        let service_rcan = Smcan::issuing_builder(&service, alice.verifying_key(), kind, Rpc::All)
+        let service_rcan = Smcan::issuing_builder(&service, alice.verifying_key(), Rpc::All)
             .sign(Expires::valid_for(Duration::from_secs(60)));
         // alice gives attenuated (only read access) to bob, but doesn't care for how long still
         let friend_rcan = Smcan::delegating_builder(
             &alice,
             bob.verifying_key(),
             service.verifying_key(),
-            kind,
             kind,
             Rpc::Read,
         )
@@ -614,7 +607,7 @@ mod test {
         let kind = blake3::hash(b"testing kind");
         let issuer = SigningKey::from_bytes(&[0u8; 32]);
         let audience = SigningKey::from_bytes(&[1u8; 32]).verifying_key();
-        let rcan = Smcan::issuing_builder(&issuer, audience, kind, Rpc::All)
+        let rcan = Smcan::issuing_builder(&issuer, audience, Rpc::All)
             .sign(Expires::valid_for(Duration::from_secs(60)));
         assert!(rcan.expires().is_valid_at(SystemTime::UNIX_EPOCH));
         let now = SystemTime::now();

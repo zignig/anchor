@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use blake3::Hash;
 use serde::{Deserialize, Serialize};
 use smcan::Capability;
 
@@ -37,6 +38,7 @@ impl Debug for Caps {
 }
 
 impl Capability for Caps {
+    const KIND: &'static str = "anchor - ahoy";
     fn permits(&self, other: &Self) -> bool {
         match (self, other) {
             (Caps::All, _) => true,

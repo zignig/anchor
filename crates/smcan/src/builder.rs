@@ -9,7 +9,7 @@ use blake3::Hash;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
-use crate::{Chain, Expires, Smcan};
+use crate::{Capability, Chain, Expires, Smcan};
 
 // Limit the length of the chain ( testing for now )
 const MAX_LENGTH: usize = 8;
@@ -21,45 +21,39 @@ where
 {
     sourcekey: VerifyingKey,
     signing_keys: HashMap<VerifyingKey, SigningKey>,
-    kind: Hash,
     chain: Chain<C>,
     hashes: Vec<Hash>,
 }
 
 impl<C> ChainBuilder<C>
 where
-    C: Serialize + for<'de> Deserialize<'de> + std::fmt::Debug + Default,
+    C: Serialize + Capability + for<'de> Deserialize<'de> + std::fmt::Debug + Default,
 {
-    pub fn new(sourcekey: VerifyingKey, kind: Hash) -> Self {
+    pub fn new(sourcekey: VerifyingKey) -> Self {
         Self {
             sourcekey,
             signing_keys: HashMap::new(),
-            kind,
             chain: Chain::<C>::default(),
             hashes: Vec::default(),
         }
     }
 
-    pub fn add_key(&mut self, key: SigningKey) -> Result<()> {
+    pub fn add_key(&mut self, key: &SigningKey) -> Result<()> {
         let vkey = key.verifying_key();
-        self.signing_keys.insert(vkey, key);
+        self.signing_keys.insert(vkey, key.clone());
         Ok(())
     }
 
     // Start a chain
     pub fn start(
         &mut self,
-        source: VerifyingKey,
+        source: SigningKey,
         target: VerifyingKey,
         cap: C,
         dur: Duration,
     ) -> Result<()> {
-        let signkey = match self.signing_keys.get(&source) {
-            Some(key) => key,
-            None => return Err(anyhow!("No signing key")),
-        };
-
-        let rc = Smcan::<C>::issuing_builder(&signkey, target, self.kind, cap);
+        self.add_key(&source)?;
+        let rc = Smcan::<C>::issuing_builder(&source, target, cap);
         let smc = rc.sign(Expires::valid_for(dur));
         let h = blake3::hash(&smc.encode());
         self.hashes.push(h);
@@ -90,8 +84,7 @@ where
         let h = self.hashes.last().expect("no hashes");
 
         // Build the next smcan
-        let rc =
-            Smcan::<C>::delegating_builder(&signkey, target, last_aud, self.kind, h.clone(), cap);
+        let rc = Smcan::<C>::delegating_builder(&signkey, target, last_aud, h.clone(), cap);
         let smc = rc.sign(Expires::valid_for(dur));
 
         // Grab the hash and update the chain.
@@ -102,7 +95,7 @@ where
     }
 
     pub fn check(&self) -> Result<()> {
-        self.chain.check(self.sourcekey, self.kind)?;
+        self.chain.check(self.sourcekey)?;
         Ok(())
     }
 

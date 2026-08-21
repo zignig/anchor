@@ -1,18 +1,15 @@
 //! Chain of smcans
 //! Import, show and check and export a vector of CAN objects
 
-use std::{
-    fmt::Display,
-    path::PathBuf,
-    time::{Duration, SystemTime},
-};
+use std::{fmt::Display, time::SystemTime};
 
 use anyhow::{anyhow, Result};
 use blake3::Hash;
-use ed25519_dalek::{SigningKey, VerifyingKey};
+use ed25519_dalek::VerifyingKey;
 use serde::{self, Deserialize, Serialize};
+use tracing::debug;
 
-use crate::{Expires, Smcan};
+use crate::{Capability, Smcan};
 
 // List of the errors
 #[derive(Debug)]
@@ -47,7 +44,7 @@ where
 
 impl<C> Chain<C>
 where
-    C: Serialize + for<'de> Deserialize<'de> + std::fmt::Debug + Default,
+    C: Serialize + Capability + for<'de> Deserialize<'de> + std::fmt::Debug + Default,
 {
     pub fn new(items: Vec<Smcan<C>>) -> Chain<C> {
         Self { items }
@@ -74,8 +71,9 @@ where
     }
 
     // Chech the rcans
-    pub fn check(&self, root: VerifyingKey, kind: Hash) -> Result<()> {
+    pub fn check(&self, root: VerifyingKey) -> Result<()> {
         // let bail = false;
+        let kind_hash = blake3::hash(C::KIND.as_bytes());
         let mut hashes = Vec::<Hash>::new();
         let now = SystemTime::now();
         let chain_length = self.items.len();
@@ -83,7 +81,7 @@ where
             return Err(anyhow!(ChainError::Empty));
         }
 
-        println!("Verify the signatures");
+        debug!("Verify the signatures");
         for (i, j) in self.items.iter().enumerate() {
             println!("{}", i);
             match j.verify_signature() {
@@ -94,15 +92,15 @@ where
         }
 
         // println!("HASHES {:#?}", hashes);
-        println!("Check the kinds");
+        debug!("Check the kinds");
         for item in &self.items {
             // println!("{} {}", &kind, &item.get_kind());
-            if item.get_kind() != &kind {
+            if item.get_kind() != &kind_hash {
                 return Err(anyhow!("bad kind"));
             }
         }
 
-        println!("Check Expiry");
+        debug!("Check Expiry");
         for (num, item) in self.items.iter().enumerate() {
             let expiry = &item.payload.valid_until;
             if !expiry.is_valid_at(now) {
@@ -110,7 +108,7 @@ where
             }
         }
 
-        println!("Check this issuing chain");
+        debug!("Check this issuing chain");
         let mut current_issuer = root.clone();
         for item in &self.items {
             // println!("{:#?}", item);
@@ -126,8 +124,8 @@ where
             }
             current_issuer = audience;
         }
-        
-        println!("Check the hash chain");
+
+        debug!("Check the hash chain");
         let mut current_hash: Hash = hashes.first().expect("Hash missing").clone();
         for item in &self.items {
             if let Some(hash) = item.issuer_hash() {
