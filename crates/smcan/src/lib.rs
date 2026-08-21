@@ -417,6 +417,15 @@ impl<C> Smcan<C> {
         }
     }
 
+    pub fn is_terminal(&self) -> bool {
+        match self.payload.capability_origin() {
+            CapabilityOrigin::Issuer => false,
+            CapabilityOrigin::IssuerTerminal => true,
+            CapabilityOrigin::Delegation(_) => false,
+            CapabilityOrigin::DelegationTerminal(_) => true,
+        }
+    }
+
     pub fn expires(&self) -> &Expires {
         &self.payload.valid_until
     }

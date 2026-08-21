@@ -67,15 +67,8 @@ async fn main() -> Result<()> {
                 Caps::All,
                 Duration::from_secs(24 * 60 * 60 * 5),
             )?;
-            cb.append(
-                audience,
-                Caps::PathTest {
-                    path: "/".to_string(),
-                },
-                Duration::from_secs(3000),
-            )?;
             cb.append(audience, Caps::Info, Duration::from_secs(4000))?;
-            cb.append(target, Caps::Status, Duration::from_secs(1000))?;
+            cb.append(target, Caps::Info, Duration::from_secs(1000))?;
             std::fs::write("data.bin", cb.dump()).expect("Can't write data file");
         }
     }
@@ -83,6 +76,9 @@ async fn main() -> Result<()> {
     println!("data_size {}", cb.dump().len());
     let cb_res = cb.check();
     info!("{:#?}", cb_res);
+
+    let this_cap = cb.check_cap(Caps::Status);
+    info!("{:#?}",this_cap);
 
     info!("RESOLVER TEST");
     let res = Resolver::<Caps>::new();

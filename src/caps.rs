@@ -66,5 +66,5 @@ impl Caps {
             return true;
         }
         false
-    }
+    } 
 }

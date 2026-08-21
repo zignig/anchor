@@ -9,6 +9,8 @@ pub struct Anchor {
 
 }
 
+
+// Given a chain. check 
 #[derive(Debug)]
 pub struct Resolver<C>
 where
@@ -27,5 +29,5 @@ where
         }
     }
 
-    
+
 }

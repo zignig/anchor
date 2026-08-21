@@ -7,7 +7,7 @@ use anyhow::{anyhow, Result};
 use blake3::Hash;
 use ed25519_dalek::VerifyingKey;
 use serde::{self, Deserialize, Serialize};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::{Capability, Smcan};
 
@@ -18,6 +18,7 @@ pub enum ChainError {
     VerifyError(String),
     BadKind(Hash, Hash),
     Expired(usize),
+    PermissionDeny,
     IssuerMismatch,
 }
 
@@ -29,6 +30,7 @@ impl Display for ChainError {
             ChainError::BadKind(k1, k2) => write!(f, "Kind should be {}, got {}", k1, k2),
             ChainError::Expired(num) => write!(f, "Item {} Expired", num),
             ChainError::IssuerMismatch => write!(f, "Issuer Mismatch"),
+            ChainError::PermissionDeny => write!(f,"permission denied"),
         }
     }
 }
@@ -72,7 +74,8 @@ where
         self.items.len()
     }
 
-    // Check the smcans
+    // Check the smcans , general hygiene , does not
+    // check the capability chain
     pub fn check(&self, root: VerifyingKey) -> Result<()> {
         let kind_hash = blake3::hash(C::KIND.as_bytes());
         let mut hashes = Vec::<Hash>::new();
@@ -145,5 +148,20 @@ where
         }
 
         Ok(())
+    }
+
+    pub fn check_cap(&self, root: VerifyingKey, cap: C) -> Result<bool> {
+        // Perform general checks on the chain
+        self.check(root)?;
+        for item in &self.items { 
+            let current_cap = item.capability();
+            info!("{:?} -> {:?}",cap , current_cap);
+            if !current_cap.permits(&cap) { 
+                warn!("Permission Fail");
+                return Err(anyhow!(ChainError::PermissionDeny));
+            }
+        }
+        // Just say no
+        Ok(false)
     }
 }

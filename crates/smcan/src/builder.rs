@@ -99,6 +99,11 @@ where
         Ok(())
     }
 
+    pub fn check_cap(&self, cap: C) -> Result<bool> {
+        let val = self.chain.check_cap(self.sourcekey, cap)?;
+        Ok(val)
+    }
+
     pub fn dump(&self) -> Vec<u8> {
         self.chain.dump()
     }
