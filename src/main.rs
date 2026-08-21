@@ -38,8 +38,8 @@ async fn main() -> Result<()> {
     let c2 = Setup::new("zignig".to_string())?;
     // println!("{:#?}", c2);
 
-    let id_source  = IdentityApi::new(Some(c2.database_path())).await;
-    let _client= id_source.client();
+    let id_source = IdentityApi::new(Some(c2.database_path())).await;
+    let _client = id_source.client();
 
     let r = c2.get_author_secret()?;
 
@@ -49,6 +49,7 @@ async fn main() -> Result<()> {
     let ep = PublicKey::from_str(EP)?;
     let target = smcan::VerifyingKey::from_bytes(ep.as_bytes())?;
 
+    println!("");
     info!("CHAIN ISSUER");
 
     let mut cb = ChainBuilder::<Caps>::new(audience);
@@ -67,8 +68,8 @@ async fn main() -> Result<()> {
                 Caps::All,
                 Duration::from_secs(24 * 60 * 60 * 5),
             )?;
-            cb.append(audience, Caps::Status, Duration::from_secs(4000))?;
-            cb.append(target, Caps::Info, Duration::from_secs(1000))?;
+            cb.append(audience, Caps::Info, Duration::from_secs(24 * 60 * 60),false)?;
+            cb.append(target, Caps::Info, Duration::from_secs(24 * 60),false)?;
             std::fs::write("data.bin", cb.dump()).expect("Can't write data file");
         }
     }
@@ -77,9 +78,11 @@ async fn main() -> Result<()> {
     // let cb_res = cb.check();
     // info!("{:#?}", cb_res);
 
-    let this_cap = cb.check_cap(Caps::Info);
-    info!("{:#?}", this_cap);
+    if cb.check_cap(Caps::Info)? {
+        info!("wooh hoo it works")
+    }
 
+    println!("");
     info!("RESOLVER TEST");
     let res = Resolver::<Caps>::new();
     println!("{:#?}", res);

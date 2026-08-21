@@ -20,6 +20,7 @@ pub enum ChainError {
     Expired(usize),
     PermissionDeny,
     IssuerMismatch,
+    TerminalInChain,
 }
 
 impl Display for ChainError {
@@ -31,13 +32,14 @@ impl Display for ChainError {
             ChainError::IssuerMismatch => write!(f, "Issuer Mismatch"),
             ChainError::PermissionDeny => write!(f, "permission denied"),
             ChainError::BadIssuer(verifying_key) => write!(f, "Bad issuer , {:?}", verifying_key),
+            ChainError::TerminalInChain => write!(f,"Terminal before chain end."),
         }
     }
 }
 
 //  This serves as the top of the chain
 
-#[derive(Default, Clone,Debug, Serialize, Deserialize)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct Chain<C>
 where
     C: Serialize,
@@ -137,6 +139,14 @@ where
             current_issuer = audience;
         }
 
+        warn!("Check terminations");
+        for (num, item) in self.items.iter().enumerate() {
+            // there is a terminal entry in the chain, bug out
+            if item.is_terminal() && (num < chain_length ) {
+                return Err(anyhow!(ChainError::TerminalInChain));
+            }
+        }
+
         warn!("Check the hash chain");
         let _current_hash: Hash = hashes.first().expect("Hash missing").clone();
         for item in &self.items {
@@ -149,14 +159,12 @@ where
             }
         }
 
-        warn!("Check terminations");
-
         Ok(())
     }
 
     pub fn check_cap(&self, root: VerifyingKey, cap: C) -> Result<bool> {
         // Perform general checks on the chain
-        debug!("Check cap {:#?}",&cap);
+        debug!("Check cap {:#?}", &cap);
         self.check(root)?;
         for item in &self.items {
             let current_cap = item.capability();
@@ -166,7 +174,7 @@ where
                 return Err(anyhow!(ChainError::PermissionDeny));
             }
         }
-        // Just say no
-        Ok(false)
+        //If it does not bail out before this, it's good
+        Ok(true)
     }
 }

@@ -62,8 +62,31 @@ where
         Ok(())
     }
 
+    pub fn start_terminal(
+        &mut self,
+        source: SigningKey,
+        target: VerifyingKey,
+        cap: C,
+        dur: Duration,
+    ) -> Result<()> {
+        self.add_key(&source)?;
+        let rc = Smcan::<C>::issuing_terminal(&source, target, cap);
+        let smc = rc.sign(Expires::valid_for(dur));
+        let h = blake3::hash(&smc.encode());
+        self.hashes.push(h);
+        self.chain.items.push(smc);
+
+        Ok(())
+    }
+
     // Add a link to the chain
-    pub fn append(&mut self, target: VerifyingKey, cap: C, dur: Duration) -> Result<()> {
+    pub fn append(
+        &mut self,
+        target: VerifyingKey,
+        cap: C,
+        dur: Duration,
+        terminal: bool,
+    ) -> Result<()> {
         // Check the lengths of the chain
         if self.chain.len() < 1 {
             return Err(anyhow!("Chain not long enough"));
@@ -72,6 +95,7 @@ where
         if self.chain.len() > MAX_LENGTH {
             return Err(anyhow!("Chain too long"));
         }
+
         // Get the last item off the chain , and try to find the SigningKey
         let last_can = self.chain.items.last().expect("no items");
         let last_aud = last_can.audience().to_owned();
@@ -84,7 +108,12 @@ where
         let h = self.hashes.last().expect("no hashes");
 
         // Build the next smcan
-        let rc = Smcan::<C>::delegating_builder(&signkey, target, last_aud, h.clone(), cap);
+        let rc = if terminal {
+            Smcan::<C>::delegating_terminal(&signkey, target, last_aud, h.clone(), cap)
+        } else {
+            Smcan::<C>::delegating_builder(&signkey, target, last_aud, h.clone(), cap)
+        };
+        
         let smc = rc.sign(Expires::valid_for(dur));
 
         // Grab the hash and update the chain.
