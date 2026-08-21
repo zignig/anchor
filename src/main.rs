@@ -14,7 +14,7 @@ mod settings;
 
 use idstore::IdentityApi;
 use settings::Setup;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::caps::Caps;
 
@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
     let mut filter = Targets::new();
     filter = filter
         .with_target(env!("CARGO_PKG_NAME"), LevelFilter::DEBUG)
-        .with_target("smcan", LevelFilter::DEBUG);
+        .with_target("smcan", LevelFilter::INFO);
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
         .with(filter)
@@ -71,32 +71,35 @@ async fn main() -> Result<()> {
             cb.append(
                 audience,
                 Caps::Info,
-                Duration::from_secs(24 * 60 * 60),
+                Duration::from_secs(12 * 60 * 60),
                 false,
             )?;
-            cb.append(
-                audience,
-                Caps::Info,
-                Duration::from_secs(24 * 60 * 60),
-                false,
-            )?;
+            // cb.append(
+            //     audience,
+            //     Caps::Info,
+            //     Duration::from_secs(24*60),
+            //     false,
+            // )?;
 
             // cb.append(target, Caps::Info, Duration::from_secs(24 * 60), true)?;
 
             std::fs::write("data.bin", cb.dump()).expect("Can't write data file");
         }
     }
+
+    // add the secret key , for extending chain
     cb.add_key(&issuer);
-    cb.append(target, Caps::Info, Duration::from_secs(24 * 60), true)?;
+    // will check the cap when it adds it.
+    cb.append(target, Caps::Status, Duration::from_secs(24 * 60), true)?;
 
     println!("Show");
     cb.show();
     println!("data_size {}", cb.dump().len());
     // let cb_res = cb.check();
     // info!("{:#?}", cb_res);
-
-    if cb.check_cap(Caps::Info)? {
-        info!("wooh hoo it works")
+    match cb.check_cap(Caps::Status) {
+        Ok(_) => info!("wooh hoo it works"),
+        Err(e) => error!("{:#?}", e),
     }
 
     // println!("");

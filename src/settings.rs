@@ -25,7 +25,7 @@ impl Setup {
         let fol = projdir.config_dir();
         match std::fs::create_dir(&fol) {
             Ok(_) => {}
-            Err(e) => println!("{:#?}", e),
+            Err(e) => {} // println!("{:#?}", e),
         }
         // Create the emptyish config file
         info!("Make Config");

@@ -89,12 +89,12 @@ where
 
         debug!("Verify the signatures");
         for (i, j) in self.items.iter().enumerate() {
-            debug!(
-                "{} {} -> {}",
-                i,
-                hex::encode(j.issuer()),
-                hex::encode(j.audience())
-            );
+            // debug!(
+            //     "{} {} -> {}",
+            //     i,
+            //     hex::encode(j.issuer()),
+            //     hex::encode(j.audience())
+            // );
 
             match j.verify_signature() {
                 Ok(_) => {}
@@ -103,7 +103,7 @@ where
             hashes.push(blake3::hash(&j.encode()));
         }
 
-        debug!("Check the kinds");
+        debug!("Check Kind");
         for item in &self.items {
             // println!("{} {}", &kind_hash, &item.get_kind());
             let kind = item.get_kind();
@@ -141,14 +141,14 @@ where
 
         debug!("Check terminations");
         for (num, item) in self.items.iter().enumerate() {
-            // there is a terminal entry in the chain, bug out
+            // there is a terminal entry before the end of the chain, bug out
             // println!("{} -- {}", num, chain_length - 1);
             if item.is_terminal() && (num < (chain_length - 1)) {
                 return Err(anyhow!(ChainError::TerminalInChain));
             }
         }
 
-        // warn!("Check the hash chain");
+        warn!("Check the hash chain");
         let _current_hash: Hash = hashes.first().expect("Hash missing").clone();
         // warn!("hash {:#?}", hashes);
         for item in &self.items {
@@ -171,7 +171,7 @@ where
         self.check(root)?;
         for item in &self.items {
             let current_cap = item.capability();
-            info!("{:?} -> {:?}", cap, current_cap);
+            debug!("{:?} -> {:?}", cap, current_cap);
             if !current_cap.permits(&cap) {
                 warn!("Permission Fail");
                 return Err(anyhow!(ChainError::PermissionDeny));

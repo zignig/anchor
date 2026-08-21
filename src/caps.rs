@@ -41,7 +41,7 @@ impl Capability for Caps {
     fn permits(&self, other: &Self) -> bool {
         match (self, other) {
             (Caps::All, _) => true,
-            (Caps::Info, Caps::Info) => true,
+            (Caps::Info, Caps::Info | Caps::Status) => true,
             (Caps::Issue, Caps::Issue) => true,
             (Caps::Revoke, Caps::Revoke) => true,
             (Caps::Status, Caps::Status) => true,

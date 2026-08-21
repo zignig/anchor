@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use blake3::Hash;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::{Capability, Chain, Expires, Smcan};
 
@@ -87,6 +87,7 @@ where
         dur: Duration,
         terminal: bool,
     ) -> Result<()> {
+        debug!("Add cap \"{:#?}\" to the chain",&cap);
         // Check the lengths of the chain
         if self.chain.len() < 1 {
             return Err(anyhow!("Chain not long enough"));
@@ -98,9 +99,9 @@ where
         // Check if the cap chain can actually support the new cap
         match self.chain.check_cap(&self.sourcekey, cap.clone()){
             Ok(_) => {},
-            Err(_) => {
+            Err(e) => {
                 error!("Failed to add {:#?}",&cap);
-                return Err(anyhow!("Can't add {:#?}",&cap));
+                return Err(anyhow!("Can't add {:#?} because {}",&cap,e));
             },
         }
 
@@ -111,6 +112,11 @@ where
             Some(key) => key,
             None => return Err(anyhow!("No signing key")),
         };
+
+        // Check if last item is terminal
+        if last_can.is_terminal() { 
+            return Err(anyhow!("Trying to append to a terminal chain."));
+        }
 
         // Get the has of the last item
         let h = self.hashes.last().expect("no hashes");
