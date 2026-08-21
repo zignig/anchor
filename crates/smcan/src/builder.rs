@@ -39,7 +39,7 @@ where
         }
     }
 
-    pub fn add_key(&mut self, key: &SigningKey){
+    pub fn add_key(&mut self, key: &SigningKey) {
         let vkey = key.verifying_key();
         self.signing_keys.insert(vkey, key.clone());
     }
@@ -87,7 +87,7 @@ where
         dur: Duration,
         terminal: bool,
     ) -> Result<()> {
-        debug!("Add cap \"{:#?}\" to the chain",&cap);
+        debug!("Add cap \"{:#?}\" to the chain", &cap);
         // Check the lengths of the chain
         if self.chain.len() < 1 {
             return Err(anyhow!("Chain not long enough"));
@@ -97,12 +97,12 @@ where
             return Err(anyhow!("Chain too long"));
         }
         // Check if the cap chain can actually support the new cap
-        match self.chain.check_cap(&self.sourcekey, cap.clone()){
-            Ok(_) => {},
+        match self.chain.check_cap(&self.sourcekey, cap.clone()) {
+            Ok(_) => {}
             Err(e) => {
-                error!("Failed to add {:#?}",&cap);
-                return Err(anyhow!("Can't add {:#?} because {}",&cap,e));
-            },
+                error!("Failed to add {:#?}", &cap);
+                return Err(anyhow!("Can't add {:#?} because {}", &cap, e));
+            }
         }
 
         // Get the last item off the chain , and try to find the SigningKey
@@ -114,7 +114,7 @@ where
         };
 
         // Check if last item is terminal
-        if last_can.is_terminal() { 
+        if last_can.is_terminal() {
             return Err(anyhow!("Trying to append to a terminal chain."));
         }
 
@@ -142,7 +142,7 @@ where
         Ok(())
     }
 
-    pub fn check_cap(&self,cap: C) -> Result<bool> {
+    pub fn check_cap(&self, cap: C) -> Result<bool> {
         let val = self.chain.check_cap(&self.sourcekey, cap)?;
         Ok(val)
     }
@@ -173,6 +173,63 @@ where
         for i in &self.chain.items {
             self.hashes.push(blake3::hash(&i.encode()));
         }
+        Ok(())
+    }
+}
+
+// Some tests for the Chain builder
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    use crate::{Capability, ChainBuilder};
+    use serde::{Deserialize, Serialize};
+    use testresult::TestResult;
+
+    #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
+    enum Rpc {
+        #[default]
+        Read,
+        ReadWrite,
+        /// Read, ReadWrite, and any "future ones" that we might not have thought of yet.
+        All,
+    }
+
+    impl Capability for Rpc {
+        const KIND: &'static str = "testing hash string thing";
+
+        fn permits(&self, other: &Self) -> bool {
+            match (self, other) {
+                // `All` permits all RPC operations, by definition
+                (Rpc::All, _) => true,
+                // `ReadWrite` permits `Read` and `ReadWrite`, but not `All` (which may be extended later to include more caps)
+                (Rpc::ReadWrite, Rpc::ReadWrite | Rpc::Read) => true,
+                (Rpc::ReadWrite, _) => false,
+                // `Read` only permits `Read`
+                (Rpc::Read, Rpc::Read) => true,
+                (Rpc::Read, _) => false,
+            }
+        }
+    }
+
+    type TestBuilder = ChainBuilder<Rpc>;
+
+    #[test]
+    fn test_chain_builder() -> TestResult {
+        // Some keys
+        let issuer = SigningKey::from_bytes(&[0u8; 32]);
+        let audience = SigningKey::from_bytes(&[1u8; 32]);
+
+        // Make a builder
+        let mut cb = TestBuilder::new(issuer.verifying_key());
+        cb.start(
+            issuer.clone(),
+            issuer.verifying_key(),
+            Rpc::All,
+            Duration::from_secs(20),
+        );
+        cb.show();
+        cb.check_cap(Rpc::Read)?;
         Ok(())
     }
 }

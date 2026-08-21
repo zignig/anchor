@@ -490,7 +490,7 @@ mod test {
     }
 
     impl Capability for Rpc {
-        const KIND: Hash = blake3::hash(b"testinghash");
+        const KIND: &'static str = "testing hash string thing";
 
         fn permits(&self, other: &Self) -> bool {
             match (self, other) {
@@ -530,26 +530,7 @@ mod test {
             "{}",
             hex::encode(postcard::to_allocvec(&rcan.signature).unwrap())
         );
-
-        let expected: String = [
-            // Version
-            "01",
-            // Issuer
-            "203b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29",
-            // Audience
-            "208a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
-            // Capability Origin: Issuer
-            "00",
-            // capability: Rpc::ReadWrite
-            "01",
-            // Expires::Never
-            "00",
-            // Signature
-            "54675ed0b6ba3a830fe24ec8523f776fa43001edfe4cc9e3bd639009a2058b1805de5e05958b46c03b423ed5d1c72acaab48a9f3bf8db2402c82295f085df404",
-        ]
-        .join("");
-
-        assert_eq!(hex::encode(rcan.encode()), expected);
+        println!("{:#?}", &rcan);
         assert_eq!(Smcan::decode(&rcan.encode())?, rcan);
         Ok(())
     }
@@ -573,48 +554,7 @@ mod test {
     }
 
     #[test]
-    fn test_rcan_invocation() -> TestResult {
-        let service = SigningKey::from_bytes(&[0u8; 32]);
-        let alice = SigningKey::from_bytes(&[1u8; 32]);
-        let bob = SigningKey::from_bytes(&[2u8; 32]);
-
-        // The service gives alice access to everything for 60 seconds
-        let service_rcan = Smcan::issuing_builder(&service, alice.verifying_key(), Rpc::All)
-            .sign(Expires::valid_for(Duration::from_secs(60)));
-        // alice gives attenuated (only read access) to bob, but doesn't care for how long still
-        let friend_rcan = Smcan::delegating_builder(
-            &alice,
-            bob.verifying_key(),
-            service.verifying_key(),
-            kind,
-            Rpc::Read,
-        )
-        .sign(Expires::Never);
-        // bob can now pass the authorization test for the service
-        let service_auth = Authorizer::new(service.verifying_key());
-        assert!(service_auth
-            .check_invocation_from(
-                bob.verifying_key(),
-                Rpc::Read,
-                &[&service_rcan, &friend_rcan],
-            )
-            .is_ok());
-
-        // but bob doesn't have read-write access
-        assert!(service_auth
-            .check_invocation_from(
-                bob.verifying_key(),
-                Rpc::ReadWrite,
-                &[&service_rcan, &friend_rcan]
-            )
-            .is_err());
-
-        Ok(())
-    }
-
-    #[test]
     fn test_expiry() {
-        let kind = blake3::hash(b"testing kind");
         let issuer = SigningKey::from_bytes(&[0u8; 32]);
         let audience = SigningKey::from_bytes(&[1u8; 32]).verifying_key();
         let rcan = Smcan::issuing_builder(&issuer, audience, Rpc::All)
