@@ -6,15 +6,16 @@ mod builder;
 mod chain;
 mod resolver;
 
-
+//  Exported
+pub use builder::ChainBuilder;
+pub use chain::Chain;
+pub use resolver::Resolver;
 
 use std::ops::Add;
 
-// TODO: better error management
 use anyhow::{bail, ensure, Context, Result};
 use blake3::Hash;
-pub use builder::ChainBuilder;
-pub use chain::Chain;
+
 use ed25519_dalek::{ed25519::signature::Signer, Signature, SIGNATURE_LENGTH};
 pub use ed25519_dalek::{SigningKey, VerifyingKey};
 use n0_future::time::{Duration, SystemTime};

@@ -7,7 +7,7 @@ use anyhow::{anyhow, Result};
 use blake3::Hash;
 use ed25519_dalek::VerifyingKey;
 use serde::{self, Deserialize, Serialize};
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::{Capability, Smcan};
 
@@ -16,6 +16,7 @@ use crate::{Capability, Smcan};
 pub enum ChainError {
     Empty,
     VerifyError(String),
+    BadKind(Hash, Hash),
     Expired(usize),
     IssuerMismatch,
 }
@@ -25,6 +26,7 @@ impl Display for ChainError {
         match self {
             ChainError::Empty => write!(f, "Empty Chain"),
             ChainError::VerifyError(_) => todo!(),
+            ChainError::BadKind(k1, k2) => write!(f, "Kind should be {}, got {}", k1, k2),
             ChainError::Expired(num) => write!(f, "Item {} Expired", num),
             ChainError::IssuerMismatch => write!(f, "Issuer Mismatch"),
         }
@@ -50,7 +52,7 @@ where
         Self { items }
     }
 
-    pub fn scan(&self) {
+    pub fn show(&self) {
         for (i, j) in self.items.iter().enumerate() {
             println!("{:#?} -> {:#?}", i, j);
         }
@@ -70,9 +72,8 @@ where
         self.items.len()
     }
 
-    // Chech the rcans
+    // Check the smcans
     pub fn check(&self, root: VerifyingKey) -> Result<()> {
-        // let bail = false;
         let kind_hash = blake3::hash(C::KIND.as_bytes());
         let mut hashes = Vec::<Hash>::new();
         let now = SystemTime::now();
@@ -83,7 +84,13 @@ where
 
         debug!("Verify the signatures");
         for (i, j) in self.items.iter().enumerate() {
-            println!("{}", i);
+            info!(
+                "{} {} -> {}",
+                i,
+                hex::encode(j.issuer()),
+                hex::encode(j.audience())
+            );
+
             match j.verify_signature() {
                 Ok(_) => {}
                 Err(e) => return Err(e),
@@ -91,12 +98,12 @@ where
             hashes.push(blake3::hash(&j.encode()));
         }
 
-        // println!("HASHES {:#?}", hashes);
         debug!("Check the kinds");
         for item in &self.items {
-            // println!("{} {}", &kind, &item.get_kind());
-            if item.get_kind() != &kind_hash {
-                return Err(anyhow!("bad kind"));
+            // println!("{} {}", &kind_hash, &item.get_kind());
+            let kind = item.get_kind();
+            if kind != &kind_hash {
+                return Err(anyhow!(ChainError::BadKind(kind_hash, *kind)));
             }
         }
 

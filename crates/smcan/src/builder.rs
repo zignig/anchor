@@ -104,7 +104,7 @@ where
     }
 
     pub fn show(&self) {
-        self.chain.scan();
+        self.chain.show();
     }
 
     pub fn pop(&mut self) {

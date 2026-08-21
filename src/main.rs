@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr, time::Duration};
 use anyhow::Result;
 use blake3::Hash;
 use iroh::PublicKey;
-use smcan::{Chain, ChainBuilder, Smcan};
+use smcan::{Chain, ChainBuilder, Resolver, Smcan};
 use tracing_subscriber::{
     filter::{LevelFilter, Targets},
     prelude::*,
@@ -42,11 +42,10 @@ async fn main() -> Result<()> {
     let _ = IdentityApi::new(Some(c2.database_path())).await;
 
     let r = c2.get_author_secret()?;
-    let issuer = smcan::SigningKey::from_bytes(&r.to_bytes());
 
+    let issuer = smcan::SigningKey::from_bytes(&r.to_bytes());
     let audience = issuer.verifying_key();
 
-    let kind = blake3::hash(b"test kind");
     let ep = PublicKey::from_str(EP)?;
     let target = smcan::VerifyingKey::from_bytes(ep.as_bytes())?;
 
@@ -61,14 +60,20 @@ async fn main() -> Result<()> {
             info!("Load from file");
         }
         Err(_) => {
-            // 
+            //
             cb.start(
                 issuer,
                 audience,
                 Caps::All,
                 Duration::from_secs(24 * 60 * 60 * 5),
             )?;
-            cb.append(audience, Caps::Info, Duration::from_secs(3000))?;
+            cb.append(
+                audience,
+                Caps::PathTest {
+                    path: "/".to_string(),
+                },
+                Duration::from_secs(3000),
+            )?;
             cb.append(audience, Caps::Info, Duration::from_secs(4000))?;
             cb.append(target, Caps::Status, Duration::from_secs(1000))?;
             std::fs::write("data.bin", cb.dump()).expect("Can't write data file");
@@ -79,6 +84,9 @@ async fn main() -> Result<()> {
     let cb_res = cb.check();
     info!("{:#?}", cb_res);
 
+    info!("RESOLVER TEST");
+    let res = Resolver::<Caps>::new();
+    println!("{:#?}", res);
     // info!("{:#?}",cb);
     info!("Finish");
 
