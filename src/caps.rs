@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use blake3::Hash;
 use serde::{Deserialize, Serialize};
 use smcan::Capability;
 
@@ -45,7 +44,7 @@ impl Capability for Caps {
             (Caps::Info, Caps::Info) => true,
             (Caps::Issue, Caps::Issue) => true,
             (Caps::Revoke, Caps::Revoke) => true,
-            (Caps::Status, Caps::Status) => true,
+            (Caps::Status, Caps::Status | Caps::Info) => true,
             (Caps::PathTest { path }, Caps::PathTest { path: otherpath }) => {
                 self.path_check(path, otherpath)
             }
@@ -66,5 +65,5 @@ impl Caps {
             return true;
         }
         false
-    } 
+    }
 }

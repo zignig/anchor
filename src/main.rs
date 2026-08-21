@@ -1,9 +1,8 @@
 use std::{path::PathBuf, str::FromStr, time::Duration};
 
 use anyhow::Result;
-use blake3::Hash;
 use iroh::PublicKey;
-use smcan::{Chain, ChainBuilder, Resolver, Smcan};
+use smcan::{ChainBuilder, Resolver};
 use tracing_subscriber::{
     filter::{LevelFilter, Targets},
     prelude::*,
@@ -15,7 +14,7 @@ mod settings;
 
 use idstore::IdentityApi;
 use settings::Setup;
-use tracing::{error, info};
+use tracing::info;
 
 use crate::caps::Caps;
 
@@ -30,7 +29,7 @@ async fn main() -> Result<()> {
     let mut filter = Targets::new();
     filter = filter
         .with_target(env!("CARGO_PKG_NAME"), LevelFilter::DEBUG)
-        .with_target("smcan", LevelFilter::DEBUG);
+        .with_target("smcan", LevelFilter::INFO);
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
         .with(filter)
@@ -39,7 +38,8 @@ async fn main() -> Result<()> {
     let c2 = Setup::new("zignig".to_string())?;
     // println!("{:#?}", c2);
 
-    let _ = IdentityApi::new(Some(c2.database_path())).await;
+    let id_source  = IdentityApi::new(Some(c2.database_path())).await;
+    let _client= id_source.client();
 
     let r = c2.get_author_secret()?;
 
@@ -67,18 +67,18 @@ async fn main() -> Result<()> {
                 Caps::All,
                 Duration::from_secs(24 * 60 * 60 * 5),
             )?;
-            cb.append(audience, Caps::Info, Duration::from_secs(4000))?;
+            cb.append(audience, Caps::Status, Duration::from_secs(4000))?;
             cb.append(target, Caps::Info, Duration::from_secs(1000))?;
             std::fs::write("data.bin", cb.dump()).expect("Can't write data file");
         }
     }
     cb.show();
     println!("data_size {}", cb.dump().len());
-    let cb_res = cb.check();
-    info!("{:#?}", cb_res);
+    // let cb_res = cb.check();
+    // info!("{:#?}", cb_res);
 
-    let this_cap = cb.check_cap(Caps::Status);
-    info!("{:#?}",this_cap);
+    let this_cap = cb.check_cap(Caps::Info);
+    info!("{:#?}", this_cap);
 
     info!("RESOLVER TEST");
     let res = Resolver::<Caps>::new();

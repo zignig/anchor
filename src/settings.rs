@@ -1,4 +1,4 @@
-use std::{f32::consts::E, io::Write, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Result, anyhow};
 use directories::{self, ProjectDirs};
@@ -17,6 +17,7 @@ struct PublishKey {
     secret: SecretKey,
 }
 
+#[allow(unused)]
 impl Setup {
     pub fn new(username: String) -> Result<Self> {
         let projdir = Self::get_dirs()?;
@@ -84,6 +85,10 @@ impl Setup {
         }
     }
 
+    pub fn get_user(&self) -> String {
+        self.config.username()
+    }
+
     pub fn get_author_secret(&self) -> Result<SecretKey> {
         let mut path = self.projdir.config_dir().to_path_buf();
         path.push("author.key");
@@ -119,6 +124,10 @@ pub struct Config {
 impl Config {
     pub fn new(username: String) -> Self {
         Self { username }
+    }
+
+    pub fn username(&self) -> String {
+        self.username.clone()
     }
 
     pub fn save(&self, path: PathBuf) -> Result<()> {

@@ -15,8 +15,8 @@ use crate::{Capability, Smcan};
 #[derive(Debug)]
 pub enum ChainError {
     Empty,
-    VerifyError(String),
     BadKind(Hash, Hash),
+    BadIssuer(VerifyingKey),
     Expired(usize),
     PermissionDeny,
     IssuerMismatch,
@@ -26,18 +26,18 @@ impl Display for ChainError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ChainError::Empty => write!(f, "Empty Chain"),
-            ChainError::VerifyError(_) => todo!(),
             ChainError::BadKind(k1, k2) => write!(f, "Kind should be {}, got {}", k1, k2),
             ChainError::Expired(num) => write!(f, "Item {} Expired", num),
             ChainError::IssuerMismatch => write!(f, "Issuer Mismatch"),
-            ChainError::PermissionDeny => write!(f,"permission denied"),
+            ChainError::PermissionDeny => write!(f, "permission denied"),
+            ChainError::BadIssuer(verifying_key) => write!(f, "Bad issuer , {:?}", verifying_key),
         }
     }
 }
 
 //  This serves as the top of the chain
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Clone,Debug, Serialize, Deserialize)]
 pub struct Chain<C>
 where
     C: Serialize,
@@ -87,7 +87,7 @@ where
 
         debug!("Verify the signatures");
         for (i, j) in self.items.iter().enumerate() {
-            info!(
+            debug!(
                 "{} {} -> {}",
                 i,
                 hex::encode(j.issuer()),
@@ -110,6 +110,14 @@ where
             }
         }
 
+        debug!("Check Origin");
+        for item in &self.items {
+            let issuer = item.capability_issuer();
+            if issuer != &root {
+                return Err(anyhow!(ChainError::BadIssuer(issuer.clone())));
+            }
+        }
+
         debug!("Check Expiry");
         for (num, item) in self.items.iter().enumerate() {
             let expiry = &item.payload.valid_until;
@@ -121,22 +129,16 @@ where
         debug!("Check this issuing chain");
         let mut current_issuer = root.clone();
         for item in &self.items {
-            // println!("{:#?}", item);
             let issuer = item.issuer().clone();
             let audience = item.audience().clone();
-            // println!(
-            //     "{:#?} -- {:#?}",
-            //     hex::encode(&issuer),
-            //     hex::encode(&audience)
-            // );
             if issuer != current_issuer {
                 return Err(anyhow!(ChainError::IssuerMismatch));
             }
             current_issuer = audience;
         }
 
-        debug!("Check the hash chain");
-        let mut current_hash: Hash = hashes.first().expect("Hash missing").clone();
+        warn!("Check the hash chain");
+        let _current_hash: Hash = hashes.first().expect("Hash missing").clone();
         for item in &self.items {
             if let Some(hash) = item.issuer_hash() {
                 println!("HASH {:#?}", hash);
@@ -147,16 +149,19 @@ where
             }
         }
 
+        warn!("Check terminations");
+
         Ok(())
     }
 
     pub fn check_cap(&self, root: VerifyingKey, cap: C) -> Result<bool> {
         // Perform general checks on the chain
+        debug!("Check cap {:#?}",&cap);
         self.check(root)?;
-        for item in &self.items { 
+        for item in &self.items {
             let current_cap = item.capability();
-            info!("{:?} -> {:?}",cap , current_cap);
-            if !current_cap.permits(&cap) { 
+            info!("{:?} -> {:?}", cap, current_cap);
+            if !current_cap.permits(&cap) {
                 warn!("Permission Fail");
                 return Err(anyhow!(ChainError::PermissionDeny));
             }

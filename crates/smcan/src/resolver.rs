@@ -5,12 +5,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Capability, Chain};
 
-pub struct Anchor {
+// pub struct Anchor {
 
-}
+// }
 
-
-// Given a chain. check 
+// Given a chain. check
 #[derive(Debug)]
 pub struct Resolver<C>
 where
@@ -21,7 +20,7 @@ where
 
 impl<C> Resolver<C>
 where
-    C: Serialize + Capability + for<'de> Deserialize<'de> + std::fmt::Debug + Default,
+    C: Serialize + Clone + Capability + for<'de> Deserialize<'de> + std::fmt::Debug + Default,
 {
     pub fn new() -> Self {
         Self {
@@ -29,5 +28,7 @@ where
         }
     }
 
-
+    pub fn get_chain(&self) -> Chain<C> {
+        self.chain.clone()
+    }
 }
