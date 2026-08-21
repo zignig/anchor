@@ -74,12 +74,12 @@ async fn main() -> Result<()> {
                 Duration::from_secs(12 * 60 * 60),
                 false,
             )?;
-            // cb.append(
-            //     audience,
-            //     Caps::Info,
-            //     Duration::from_secs(24*60),
-            //     false,
-            // )?;
+            cb.append(
+                audience,
+                Caps::Status,
+                Duration::from_secs(86400),
+                false,
+            )?;
 
             // cb.append(target, Caps::Info, Duration::from_secs(24 * 60), true)?;
 

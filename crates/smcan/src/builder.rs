@@ -2,6 +2,8 @@
 //! Make a vector of smcan objects
 //! Sign build and save.
 
+// Force me to do some docs.
+
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
 use anyhow::{anyhow, Result};
@@ -14,6 +16,14 @@ use crate::{Capability, Chain, Expires, Smcan};
 
 // Limit the length of the chain ( testing for now )
 const MAX_LENGTH: usize = 8;
+
+
+// Builder errors
+#[derive(Debug)]
+pub enum BuilderErrors  {
+
+}
+
 
 #[derive(Debug)]
 pub struct ChainBuilder<C>
@@ -62,6 +72,7 @@ where
         Ok(())
     }
 
+    // Start a fixed chain.
     pub fn start_terminal(
         &mut self,
         source: SigningKey,

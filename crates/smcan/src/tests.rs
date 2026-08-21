@@ -49,17 +49,59 @@ mod test {
 
     #[test]
     fn test_chain_builder() -> TestResult {
-        // Some keys
+        // Just issue the start of a chain.
         let (issuer, _audience, mut cb) = builder();
-
         cb.start(
             issuer.clone(),
             issuer.verifying_key(),
             Rpc::All,
             Duration::from_secs(20),
         )?;
-        cb.show();
-        cb.check_cap(Rpc::Read)?;
+        assert!(cb.check_cap(Rpc::Read).is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn test_chain_append() -> TestResult {
+        // Some keys
+        let (issuer, audience, mut cb) = builder();
+        cb.start(
+            issuer.clone(),
+            issuer.verifying_key(),
+            Rpc::All,
+            Duration::from_secs(20),
+        )?;
+        // start already adds the key into the dict
+        cb.append(
+            audience.verifying_key(),
+            Rpc::ReadWrite,
+            Duration::from_secs(100),
+            false,
+        )?;
+        assert!(cb.check_cap(Rpc::Read).is_ok());
+        Ok(())
+    }
+
+    // Fail if we try to append to a terminal chain.
+    #[test]
+    fn test_fail_terminal_start() -> TestResult {
+        // Some keys
+        let (issuer, audience, mut cb) = builder();
+        cb.start_terminal(
+            issuer.clone(),
+            issuer.verifying_key(),
+            Rpc::All,
+            Duration::from_secs(20),
+        )?;
+        // appending to a terminal should fail
+        let res = cb.append(
+            audience.verifying_key(),
+            Rpc::ReadWrite,
+            Duration::from_secs(100),
+            false,
+        );
+        println!("{:#?}",&res);
+        assert!(res.is_err());
         Ok(())
     }
 }

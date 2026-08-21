@@ -1,11 +1,17 @@
 // Outright stolen from https://github.com/n0-computer/rcan/commit/6605540873c44df5feb3408194421311d40ffbfd
 // Updated for entertainment value
 
+// Clippy show me how.
+// #![deny(missing_docs)]
+
+
 // local modules
 mod builder;
 mod chain;
 mod resolver;
 
+
+// Run some tests , because reasons.
 #[cfg(test)]
 mod tests;
 
